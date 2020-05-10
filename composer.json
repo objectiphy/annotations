@@ -1,0 +1,24 @@
+{
+    "name": "objectiphy/annotations",
+    "description": "A standalone annotation reader - compatible with Doctrine, but a bit simpler.",
+    "authors": [
+        {
+            "name": "Russell Walker",
+            "email": "rwalker.php@gmail.com"
+        }
+    ],
+    "type": "library",
+    "license": "MIT",
+    "require": {
+        "php": "^7.4"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^9.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Objectiphy\\Annotations\\": ["src", ""],
+            "Objectiphy\\Annotations\\Tests\\": "tests"
+        }
+    }
+}
