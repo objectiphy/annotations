@@ -134,10 +134,12 @@ class AnnotationReader implements AnnotationReaderInterface
     }
 
     /******************************************************************************************************************
-     * The following public methods are only here for compatibility with the Doctrine Reader interface. If you need to 
-     * pass a Doctrine Reader to some other service, you can use an instance of this class insetad of the Doctrine 
-     * reader (just seemed like a cool thing to support, probably useless in real life though!) - these methods could 
-     * be removed and the class would still work.
+     * The following public methods are here for compatibility with the Doctrine Reader interface. If you need to pass
+     * a Doctrine Reader to some other service, you can use an instance of this class insetad of the Doctrine reader 
+     * (just seemed like a cool thing to support, probably useless in real life though!) - these methods could 
+     * be removed and the class would still work, however, it is also handy to be able to pass in a reflection object 
+     * to obtain annotation information if you already have one available - slightly more efficient than relying on 
+     * this class to create the reflection objects for you.
      *****************************************************************************************************************/
 
     /**
