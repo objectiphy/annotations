@@ -11,8 +11,8 @@ use Objectiphy\Annotations\AnnotationReaderInterface;
 use Objectiphy\Annotations\CachedAnnotationReader;
 use Objectiphy\Annotations\PsrSimpleCacheInterface;
 use Objectiphy\Annotations\Tests\Entity\TestEntity;
-use Objectiphy\Objectiphy\Annotation\Relationship;
-use Objectiphy\Objectiphy\Annotation\Table;
+use Objectiphy\Annotations\Tests\Annotations\Relationship;
+use Objectiphy\Annotations\Tests\Annotations\Table;
 use PHPUnit\Framework\TestCase;
 
 class AnnotationReaderTest extends TestCase

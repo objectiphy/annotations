@@ -88,6 +88,10 @@ class ClassAliasFinder
                 }
             }
         }
+
+        if ($reflectionClass->getParentClass()) {
+            $this->populateUsedNamespaces($reflectionClass->getParentClass(), $usedNamespaces);
+        }
     }
 
     /**

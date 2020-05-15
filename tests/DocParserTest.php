@@ -7,7 +7,7 @@ namespace Objectiphy\Annotations\Tests;
 use Objectiphy\Annotations\ClassAliasFinder;
 use Objectiphy\Annotations\DocParser;
 use Objectiphy\Annotations\Tests\Entity\TestEntity;
-use Objectiphy\Objectiphy\Annotation\Relationship;
+use Objectiphy\Annotations\Tests\Annotations\Relationship;
 use PHPUnit\Framework\TestCase;
 
 class DocParserTest extends TestCase

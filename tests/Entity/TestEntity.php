@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Objectiphy\Annotations\Tests\Entity;
 
-use Objectiphy\Objectiphy\Annotation\Relationship as ObjectiphyRelationship;
+use Objectiphy\Annotations\Tests\Annotations\Relationship as ObjectiphyRelationship;
 use This\Silly\Ns;
 use Another\Ns as OtherNamespace;
 use My\Full\Classname as Another, \My\Full\NSname;
@@ -28,7 +28,7 @@ use some\ns\
 /**
  * Class TestEntity
  * @package Objectiphy\Annotations\Tests\Entity
- * @Objectiphy\Objectiphy\Annotation\Table(name="test")
+ * @Objectiphy\Annotations\Tests\Annotations\Table(name="test")
  */
 class TestEntity
 {
