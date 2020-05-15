@@ -46,12 +46,12 @@ class AnnotationReaderTest extends TestCase
         $relationship = $this->object->getAnnotationFromProperty(TestEntity::class, 'cb', Relationship::class);
         $this->assertInstanceOf(Relationship::class, $relationship);
         $this->assertSame('one_to_one', $relationship->relationshipType);
-        $this->assertSame('some\ns\ClassB', $relationship->childClass);
+        $this->assertSame('some\ns\ClassB', $relationship->getChildClass());
 
         //Sub class, referring to a property on the super class
         $this->object->setClassNameAttributes([]);
         $relationship2 = $this->object->getAnnotationFromProperty(TestEntitySubClass::class, 'cb', Relationship::class);
-        $this->assertSame('ClassB', $relationship2->childClass);
+        $this->assertSame('ClassB', $relationship2->getChildClass());
 
         //Generic on the sub class
         $var = $this->object->getAnnotationFromProperty(TestEntitySubClass::class, 'meh', 'var');
@@ -91,11 +91,11 @@ class AnnotationReaderTest extends TestCase
         $relationship = $this->object->getPropertyAnnotation(new \ReflectionProperty(TestEntity::class, 'cb'), Relationship::class);
         $this->assertInstanceOf(Relationship::class, $relationship);
         $this->assertSame('one_to_one', $relationship->relationshipType);
-        $this->assertSame('some\ns\ClassB', $relationship->childClass);
+        $this->assertSame('some\ns\ClassB', $relationship->getChildClass());
 
         $this->object->setClassNameAttributes([]);
         $relationship2 = $this->object->getPropertyAnnotation(new \ReflectionProperty(TestEntity::class, 'cb'), Relationship::class);
-        $this->assertSame('ClassB', $relationship2->childClass);
+        $this->assertSame('ClassB', $relationship2->getChildClass());
     }
 
     public function testGetMethodAnnotation()
@@ -130,7 +130,7 @@ class AnnotationReaderTest extends TestCase
         $this->assertSame('some\ns\ClassB', $annotations[0]->type);
         $this->assertInstanceOf(Relationship::class, $annotations[1]);
         $this->assertSame('one_to_one', $annotations[1]->relationshipType);
-        $this->assertSame('some\ns\ClassB', $annotations[1]->childClass);
+        $this->assertSame('some\ns\ClassB', $annotations[1]->getChildClass());
     }
 
     public function testGetMethodAnnotations()

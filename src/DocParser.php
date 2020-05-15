@@ -324,7 +324,17 @@ class DocParser
                 if (in_array($property, $this->classNameAttributes)) {
                     $propertyValue = $this->aliasFinder->findClassForAlias($this->hostReflectionClass, $propertyValue) ?: $propertyValue;
                 }
-                $object->{$property} = $propertyValue;
+                $reflectionProperty = new \ReflectionProperty($object, $property);
+                if ($reflectionProperty->isPublic()) {
+                    $object->{$property} = $propertyValue;
+                } else
+                    $setter = 'set' . ucfirst($property);
+                    if (method_exists($object, $setter)) {
+                    $reflectionMethod = new \ReflectionMethod($object, $setter);
+                    if ($reflectionMethod->isPublic()) {
+                        $object->{$setter}($propertyValue);
+                    }
+                }
             }
         } catch (\Exception $ex) {}
     }

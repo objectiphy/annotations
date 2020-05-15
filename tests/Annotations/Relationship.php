@@ -19,8 +19,11 @@ class Relationship
     /** @var string One of the class constant values (eg. "one_to_one"). */
     public string $relationshipType;
 
-    /** @var string Child entity class name. */
-    public string $childClass = '';
+    /**
+     * @var string Child entity class name.
+     * NOTE: This has been converted to private with getter/setter for testing purposes.
+     */
+    private string $childClass = '';
 
     /**
      * @var string If the relationship is owned by the other class, specify the property on the other class that holds
@@ -76,5 +79,15 @@ class Relationship
     public function __construct($relationshipType)
     {
         $this->relationshipType = $relationshipType;
+    }
+
+    public function setChildClass($value)
+    {
+        $this->childClass = $value;
+    }
+
+    public function getChildClass()
+    {
+        return $this->childClass;
     }
 }

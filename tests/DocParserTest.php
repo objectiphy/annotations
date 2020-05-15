@@ -33,7 +33,7 @@ class DocParserTest extends TestCase
         */';
         $relationship = $this->object->getAnnotation($reflectionClass, $docComment, 'p#test', Relationship::class);
         $this->assertInstanceOf(Relationship::class, $relationship);
-        $this->assertSame('YetAnotherWeirdOne\Tests\Entity\TestEntity', $relationship->childClass);
+        $this->assertSame('YetAnotherWeirdOne\Tests\Entity\TestEntity', $relationship->getChildClass());
         $this->assertSame(true, $relationship->lazyLoad);
         $this->assertIsArray($relationship->orderBy);
         $this->assertContains('someProperty', $relationship->orderBy);
@@ -42,7 +42,7 @@ class DocParserTest extends TestCase
         $this->object->setClassNameAttributes(['childClass']);
         $relationship2 = $this->object->getAnnotation($reflectionClass, $docComment, 'p#test', Relationship::class);
         $this->assertInstanceOf(Relationship::class, $relationship2);
-        $this->assertSame(TestEntity::class, $relationship2->childClass);
+        $this->assertSame(TestEntity::class, $relationship2->getChildClass());
 
         $intAnnotation = $this->object->getAnnotation($reflectionClass, $docComment, 'p#int', 'param');
         $this->assertSame("int \$i Some random \n integer", str_replace('  ', '', $intAnnotation->value));
