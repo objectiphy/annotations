@@ -14,7 +14,7 @@ class AnnotationReader implements AnnotationReaderInterface
     /** @var string In case we are in silent mode, any error messages will be reported here. */
     public string $lastErrorMessage = '';
 
-    private \ReflectionClass $reflectionClass;
+    private ?\ReflectionClass $reflectionClass;
     private DocParser $docParser;
     private bool $throwExceptions;
     private ClassAliasFinder $aliasFinder;
@@ -92,7 +92,10 @@ class AnnotationReader implements AnnotationReaderInterface
         try {
             $this->assertClassExists($className);
             $this->reflectionClass = new \ReflectionClass($className);
-            if ($this->reflectionClass->hasProperty($propertyName)) {
+            while ($this->reflectionClass && !$this->reflectionClass->hasProperty($propertyName)) {
+                $this->reflectionClass = $this->reflectionClass->getParentClass() ?: null;
+            }
+            if ($this->reflectionClass && $this->reflectionClass->hasProperty($propertyName)) {
                 $reflectionProperty = $this->reflectionClass->getProperty($propertyName);
                 $docComment = $reflectionProperty->getDocComment();
 
@@ -119,7 +122,10 @@ class AnnotationReader implements AnnotationReaderInterface
         try {
             $this->assertClassExists($className);
             $this->reflectionClass = new \ReflectionClass($className);
-            if ($this->reflectionClass->hasMethod($methodName)) {
+            while ($this->reflectionClass && !$this->reflectionClass->hasMethod($methodName)) {
+                $this->reflectionClass = $this->reflectionClass->getParentClass() ?: null;
+            }
+            if ($this->reflectionClass && $this->reflectionClass->hasMethod($methodName)) {
                 $reflectionMethod = $this->reflectionClass->getMethod($methodName);
                 $docComment = $reflectionMethod->getDocComment();
 

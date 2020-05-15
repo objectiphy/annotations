@@ -13,6 +13,7 @@ use Objectiphy\Annotations\PsrSimpleCacheInterface;
 use Objectiphy\Annotations\Tests\Entity\TestEntity;
 use Objectiphy\Annotations\Tests\Annotations\Relationship;
 use Objectiphy\Annotations\Tests\Annotations\Table;
+use Objectiphy\Annotations\Tests\Entity\TestEntitySubClass;
 use PHPUnit\Framework\TestCase;
 
 class AnnotationReaderTest extends TestCase
@@ -47,9 +48,15 @@ class AnnotationReaderTest extends TestCase
         $this->assertSame('one_to_one', $relationship->relationshipType);
         $this->assertSame('some\ns\ClassB', $relationship->childClass);
 
+        //Sub class, referring to a property on the super class
         $this->object->setClassNameAttributes([]);
-        $relationship2 = $this->object->getAnnotationFromProperty(TestEntity::class, 'cb', Relationship::class);
+        $relationship2 = $this->object->getAnnotationFromProperty(TestEntitySubClass::class, 'cb', Relationship::class);
         $this->assertSame('ClassB', $relationship2->childClass);
+
+        //Generic on the sub class
+        $var = $this->object->getAnnotationFromProperty(TestEntitySubClass::class, 'meh', 'var');
+        $this->assertSame(AnnotationGeneric::class, get_class($var));
+        $this->assertSame('int', $var->type);
 
         //Property does not exist
         $this->object->setThrowExceptions(false);
