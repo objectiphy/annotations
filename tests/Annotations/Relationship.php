@@ -1,4 +1,7 @@
 <?php
+
+declare(strict_types=1);
+
 //This file has been copied from an early version of Objectiphy, just as an example to use in unit tests
 namespace Objectiphy\Annotations\Tests\Annotations;
 

@@ -16,14 +16,14 @@ if (interface_exists('Doctrine\Common\Annotations\Reader')) {
     interface AnnotationReaderInterfaceBase
     {
         /**
-         * For Doctrine compatiblity only - get all annotations found on a class.
+         * For Doctrine compatiblity - get all annotations found on a class.
          * @param \ReflectionClass $class
          * @return array An array of annotation objects.
          */
         public function getClassAnnotations(\ReflectionClass $class);
 
         /**
-         * For Doctrine compatiblity only - get a particular annotation from a class.
+         * For Doctrine compatiblity - get a particular annotation from a class.
          * @param \ReflectionClass $class
          * @param $annotationName
          * @return object|null The annotation object.
@@ -31,25 +31,25 @@ if (interface_exists('Doctrine\Common\Annotations\Reader')) {
         public function getClassAnnotation(\ReflectionClass $class, $annotationName);
 
         /**
-         * For Doctrine compatiblity only - get all annotations found on a method.
+         * For Doctrine compatiblity - get all annotations found on a method.
          * @return array An array of annotation objects.
          */
         public function getMethodAnnotations(\ReflectionMethod $method);
 
         /**
-         * For Doctrine compatiblity only - get a particular annotation from a method.
+         * For Doctrine compatiblity - get a particular annotation from a method.
          * @return object|null The annotation object.
          */
         public function getMethodAnnotation(\ReflectionMethod $method, $annotationName);
 
         /**
-         * For Doctrine compatiblity only -  get all annotations found on a property.
+         * For Doctrine compatiblity -  get all annotations found on a property.
          * @return array An array of annotations objects.
          */
         public function getPropertyAnnotations(\ReflectionProperty $property);
 
         /**
-         * For Doctrine compatiblity only - get a particular annotation from a property.
+         * For Doctrine compatiblity - get a particular annotation from a property.
          * @return object|null The annotation object.
          */
         public function getPropertyAnnotation(\ReflectionProperty $property, $annotationName);

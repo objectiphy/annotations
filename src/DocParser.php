@@ -15,6 +15,7 @@ class DocParser
     private \ReflectionClass $hostReflectionClass;
     private array $classNameAttributes;
     private array $annotations = [];
+    private array $properties = [];
 
     public function __construct(ClassAliasFinder $aliasFinder = null, array $classNameAttributes = [])
     {
@@ -210,17 +211,17 @@ class DocParser
      */
     private function convertValueToObject(string $annotation, string $value, string $className): ?object
     {
-        $properties = $this->extractPropertyValues($value);
+        $this->properties = $this->extractPropertyValues($value);
         $annotationReflectionClass = new \ReflectionClass($className);
         $constructor = $annotationReflectionClass->getConstructor();
         if ($constructor && $constructor->getNumberOfRequiredParameters() > 0) {
-            $mandatoryArgs = $this->getMandatoryConstructorArgs($annotation, $annotationReflectionClass, $properties);
+            $mandatoryArgs = $this->getMandatoryConstructorArgs($annotation, $annotationReflectionClass);
             $object = new $className(...$mandatoryArgs);
         } else {
             $object = new $className();
         }
 
-        foreach ($properties as $property => $propertyValue) {
+        foreach ($this->properties as $property => $propertyValue) {
             $this->setPropertyOnObject($object, $property, $propertyValue);
         }
 
@@ -238,13 +239,12 @@ class DocParser
      */
     private function getMandatoryConstructorArgs(
         string $annotation,
-        \ReflectionClass $annotationReflectionClass,
-        array $properties
+        \ReflectionClass $annotationReflectionClass
     ): array {
         $mandatoryArgs = [];
         foreach ($annotationReflectionClass->getConstructor()->getParameters() as $constructorArg) {
             if (!$constructorArg->isOptional()) {
-                if (!array_key_exists($constructorArg->getName(), $properties)) {
+                if (!array_key_exists($constructorArg->getName(), $this->properties)) {
                     //We cannot create it!
                     $errorMessage = sprintf(
                         'Cannot create instance of annotation %1$s (defined on %2$s) because constructor argument %3$s is mandatory and has not been supplied (or the annotation is malformed so could not be parsed).',
@@ -254,7 +254,7 @@ class DocParser
                     );
                     throw new AnnotationReaderException($errorMessage);
                 }
-                $mandatoryArgs[] = $properties[$constructorArg->getName()];
+                $mandatoryArgs[] = $this->properties[$constructorArg->getName()];
             }
         }
 
