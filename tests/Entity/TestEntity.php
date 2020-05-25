@@ -34,7 +34,7 @@ class TestEntity
 {
     /**
      * @var ClassB
-     * @ObjectiphyRelationship(childClass="ClassB",
+     * @ObjectiphyRelationship(childClassName="ClassB",
      *     relationshipType="one_to_one"
      *
      * )

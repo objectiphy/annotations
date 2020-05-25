@@ -26,7 +26,7 @@ class Relationship
      * @var string Child entity class name.
      * NOTE: This has been converted to private with getter/setter for testing purposes.
      */
-    private string $childClass = '';
+    private string $childClassName = '';
 
     /**
      * @var string If the relationship is owned by the other class, specify the property on the other class that holds
@@ -84,13 +84,13 @@ class Relationship
         $this->relationshipType = $relationshipType;
     }
 
-    public function setChildClass($value)
+    public function setChildClassName($value)
     {
-        $this->childClass = $value;
+        $this->childClassName = $value;
     }
 
-    public function getChildClass()
+    public function getChildClassName()
     {
-        return $this->childClass;
+        return $this->childClassName;
     }
 }

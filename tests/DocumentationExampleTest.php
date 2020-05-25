@@ -21,15 +21,15 @@ class MyEntity2
 {
     /**
      * @var OtherClass
-     * @AnnotationAlias(name="nameValue", childClassName="OtherClass")
+     * @AnnotationAlias(name="nameValue", childClassNameName="OtherClass")
      */
-    public $childClass;
+    public $childClassName;
 }
 
 class MyAnnotation
 {
     public string $name;
-    public string $childClassName;
+    public string $childClassNameName;
     public int $value = 100;
 
     public function __construct(string $name)
@@ -61,12 +61,12 @@ Comment: A child object of the same type as the parent.', $output);
     public function testCustom()
     {
         $annotationReader = new AnnotationReader();
-        $annotationReader->setClassNameAttributes(['childClassName']);
-        $annotation = $annotationReader->getAnnotationFromProperty(MyEntity2::class, 'childClass', MyAnnotation::class);
+        $annotationReader->setClassNameAttributes(['childClassNameName']);
+        $annotation = $annotationReader->getAnnotationFromProperty(MyEntity2::class, 'childClassName', MyAnnotation::class);
 
         ob_start();
         echo "Name: " . $annotation->name . "\n";
-        echo "Child Class Name: " . $annotation->childClassName . "\n";
+        echo "Child Class Name: " . $annotation->childClassNameName . "\n";
         echo "Value: " . $annotation->value;
         $output = ob_get_clean();
 

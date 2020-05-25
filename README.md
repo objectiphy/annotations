@@ -76,7 +76,7 @@ namespace MyNamespace\Annotations;
 class MyAnnotation
 {
     public string $name;
-    public string $childClassName;
+    public string $childClassNameName;
     public int $value = 100;
     
     public function __construct(string $name)
@@ -99,9 +99,9 @@ class MyEntity2
 {
     /**
      * @var OtherClass
-     * @AnnotationAlias(name="nameValue", childClassName="OtherClass")
+     * @AnnotationAlias(name="nameValue", childClassNameName="OtherClass")
      */
-    public $childClass;
+    public $childClassName;
 }
 ```
 
@@ -113,15 +113,15 @@ use MyNamespace\Annotations\MyAnnotation;
 use MyNamespace\Entities\MyEntity2;
 
 $annotationReader = new AnnotationReader();
-$annotationReader->setClassNameAttributes(['childClassName']);
-$annotation = $annotationReader->getAnnotationFromProperty(MyEntity2::class, 'childClass', MyAnnotation::class);
+$annotationReader->setClassNameAttributes(['childClassNameName']);
+$annotation = $annotationReader->getAnnotationFromProperty(MyEntity2::class, 'childClassName', MyAnnotation::class);
 
 echo "Name: " . $annotation->name . "\n";
-echo "Child Class Name: " . $annotation->childClassName . "\n";
+echo "Child Class Name: " . $annotation->childClassNameName . "\n";
 echo "Value: " . $annotation->value;
 ```
 
-...which would output the following (note that because we told it that `childClassName` is a class name attribute, it went ahead and resolved that to a fully qualified class name):
+...which would output the following (note that because we told it that `childClassNameName` is a class name attribute, it went ahead and resolved that to a fully qualified class name):
 
 ```
 Name: nameValue

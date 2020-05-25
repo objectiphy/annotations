@@ -88,62 +88,62 @@ class CachedAnnotationReaderTest extends TestCase
 
     private function getData(bool $withClassNameAttributes = false)
     {
-        $keyPrefix = $withClassNameAttributes ? substr(sha1(json_encode(['childClass'])), 0, 10) : '';
+        $keyPrefix = $withClassNameAttributes ? substr(sha1(json_encode(['childClassName'])), 0, 10) : '';
 
         $data = [
             [
                 'methodName' => 'getAnnotationFromClass',
                 'args' => [TestEntity::class, Table::class],
                 'cacheKey' => $keyPrefix . sha1(TestEntity::class . 'c#' . Table::class),
-                'classNameAttributes' => $withClassNameAttributes ? ['childClass'] : [],
+                'classNameAttributes' => $withClassNameAttributes ? ['childClassName'] : [],
             ],
             [
                 'methodName' => 'getAnnotationFromProperty',
                 'args' => [TestEntity::class, 'cb', Relationship::class],
                 'cacheKey' => $keyPrefix . sha1(TestEntity::class . 'p#cb#' . Relationship::class),
-                'classNameAttributes' => $withClassNameAttributes ? ['childClass'] : [],
+                'classNameAttributes' => $withClassNameAttributes ? ['childClassName'] : [],
             ],
             [
                 'methodName' => 'getAnnotationFromMethod',
                 'args' => [TestEntity::class, 'someMethod', 'param'],
                 'cacheKey' => $keyPrefix . sha1(TestEntity::class . 'm#someMethod#param'),
-                'classNameAttributes' => $withClassNameAttributes ? ['childClass'] : [],
+                'classNameAttributes' => $withClassNameAttributes ? ['childClassName'] : [],
             ],
             [
                 'methodName' => 'getClassAnnotation',
                 'args' => [new \ReflectionClass(TestEntity::class), Table::class],
                 'cacheKey' => $keyPrefix . sha1(TestEntity::class . 'c#' . TestEntity::class),
-                'classNameAttributes' => $withClassNameAttributes ? ['childClass'] : [],
+                'classNameAttributes' => $withClassNameAttributes ? ['childClassName'] : [],
             ],
             [
                 'methodName' => 'getPropertyAnnotation',
                 'args' => [new \ReflectionProperty(TestEntity::class, 'cb'), Relationship::class],
                 'cacheKey' => $keyPrefix . sha1(TestEntity::class . 'p#cb#' . Relationship::class),
-                'classNameAttributes' => $withClassNameAttributes ? ['childClass'] : [],
+                'classNameAttributes' => $withClassNameAttributes ? ['childClassName'] : [],
             ],
             [
                 'methodName' => 'getMethodAnnotation',
                 'args' => [new \ReflectionMethod(TestEntity::class, 'someMethod'), 'param'],
                 'cacheKey' => $keyPrefix . sha1(TestEntity::class . 'm#someMethod#param'),
-                'classNameAttributes' => $withClassNameAttributes ? ['childClass'] : [],
+                'classNameAttributes' => $withClassNameAttributes ? ['childClassName'] : [],
             ],
             [
                 'methodName' => 'getClassAnnotations',
                 'args' => [new \ReflectionClass(TestEntity::class)],
                 'cacheKey' => $keyPrefix . sha1(TestEntity::class . 'cm#' . TestEntity::class),
-                'classNameAttributes' => $withClassNameAttributes ? ['childClass'] : [],
+                'classNameAttributes' => $withClassNameAttributes ? ['childClassName'] : [],
             ],
             [
                 'methodName' => 'getPropertyAnnotations',
                 'args' => [new \ReflectionProperty(TestEntity::class, 'cb')],
                 'cacheKey' => $keyPrefix . sha1(TestEntity::class . 'pm#cb'),
-                'classNameAttributes' => $withClassNameAttributes ? ['childClass'] : [],
+                'classNameAttributes' => $withClassNameAttributes ? ['childClassName'] : [],
             ],
             [
                 'methodName' => 'getMethodAnnotations',
                 'args' => [new \ReflectionMethod(TestEntity::class, 'someMethod')],
                 'cacheKey' => $keyPrefix . sha1(TestEntity::class . 'mm#someMethod'),
-                'classNameAttributes' => $withClassNameAttributes ? ['childClass'] : [],
+                'classNameAttributes' => $withClassNameAttributes ? ['childClassName'] : [],
             ]
         ];
 
