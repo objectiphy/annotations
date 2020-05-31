@@ -60,6 +60,18 @@ class AnnotationReader implements AnnotationReaderInterface
     }
 
     /**
+     * Returns an associative array of the properties that were specified for a custom annotation. We need this because 
+     * it is impossible to tell otherwise whether a value was present in the annotation, or whether it is just the 
+     * default value for the object or was set separately.
+     * @param string $className
+     * @return array
+     */
+    public function getAttributesRead(string $className): array
+    {
+        return $this->docParser->getProperties();
+    }
+
+    /**
      * @param string $className Name of class that has (or might have) the annotation.
      * @param string $annotationName Name of the annotation.
      * @throws AnnotationReaderException

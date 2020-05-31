@@ -33,6 +33,18 @@ class DocParser
     }
 
     /**
+     * Returns an associative array of the properties that were specified for a custom annotation. We need this because
+     * it is impossible to tell otherwise whether a value was present in the annotation, or whether it is just the
+     * default value for the object or was set separately.
+     * @param string $className
+     * @return array
+     */
+    public function getProperties(string $className): array
+    {
+        return $this->properties[$className] ?? [];
+    }
+
+    /**
      * @param \ReflectionClass $hostReflectionClass The host class that contains the doc comment.
      * @param string $docComment The doc comment to parse.
      * @param string $commentKey Unique identifier for this comment within the class (eg. p#myProperty, m#myMethod).
@@ -211,7 +223,7 @@ class DocParser
      */
     private function convertValueToObject(string $annotation, string $value, string $className): ?object
     {
-        $this->properties = $this->extractPropertyValues($value);
+        $this->properties[$className] = $this->extractPropertyValues($value);
         $annotationReflectionClass = new \ReflectionClass($className);
         $constructor = $annotationReflectionClass->getConstructor();
         if ($constructor && $constructor->getNumberOfRequiredParameters() > 0) {
@@ -221,7 +233,7 @@ class DocParser
             $object = new $className();
         }
 
-        foreach ($this->properties as $property => $propertyValue) {
+        foreach ($this->properties[$className] as $property => $propertyValue) {
             $this->setPropertyOnObject($object, $property, $propertyValue);
         }
 
@@ -244,7 +256,7 @@ class DocParser
         $mandatoryArgs = [];
         foreach ($annotationReflectionClass->getConstructor()->getParameters() as $constructorArg) {
             if (!$constructorArg->isOptional()) {
-                if (!array_key_exists($constructorArg->getName(), $this->properties)) {
+                if (!array_key_exists($constructorArg->getName(), $this->properties[$annotationReflectionClass->getName()])) {
                     //We cannot create it!
                     $errorMessage = sprintf(
                         'Cannot create instance of annotation %1$s (defined on %2$s) because constructor argument %3$s is mandatory and has not been supplied (or the annotation is malformed so could not be parsed).',
@@ -254,7 +266,7 @@ class DocParser
                     );
                     throw new AnnotationReaderException($errorMessage);
                 }
-                $mandatoryArgs[] = $this->properties[$constructorArg->getName()];
+                $mandatoryArgs[] = $this->properties[$annotationReflectionClass->getName()][$constructorArg->getName()];
             }
         }
 
