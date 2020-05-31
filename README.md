@@ -5,7 +5,7 @@ A standalone annotation reader that reads and parses annotations in PHP doc comm
 
 ## Why not just use Doctrine?
 
-No reason! By all means, use Doctrine - it is great. I wrote this partly as an academic exercise, but also to give me more freedom to do what I want. At the time of writing, Doctrine makes you jump through a few hoops and is not very tolerant of random non-standard annotations that you have not told it about. I think this is a little easier to use, and it should perform just as well as the Doctrine one.
+No reason! By all means, use Doctrine - it is great. I wrote this partly as an academic exercise, but also to give me more freedom to do what I want. At the time of writing, Doctrine makes you jump through a few hoops and is not very tolerant of random non-standard annotations that you have not told it about. I think this is a little easier to use, and it should perform just as well as the Doctrine one. You can read any annotation with this reader.
 
 ## Requirements
 
@@ -17,7 +17,7 @@ You can install Objectiphy Annotations with composer:
 ```
 composer require objectiphy/annotations
 ```
-...or just git clone or download the project and include it directly.
+...or just git clone or download the project and include it directly or with a PSR-4 autoloader.
 
 ## Basic usage
 
@@ -58,30 +58,34 @@ Comment: A child object of the same type as the parent.
 
 Note that the type has been resolved as a fully qualified class name. The reader will attempt to resolve class names in generic annotations like this if there is a single word following the annotation name and nothing else, or if there is a single word after the annotation name followed by a word that starts with a dollar sign (which is assumed to be a variable).
 
-## Using the interface
-
-The annotation reader implements AnnotationReaderInterface, which extends the Doctrine Reader interface if it exists. You can therefore pass an instance of AnnotationReader to any service that requires the Doctrine Reader interface. 
-
-When type-hinting for an annotation reader in your own code, you should always hint on `AnnotationReaderInterface` (or Doctrine's `Reader`) - do not hint on `AnnotationReader` itself. This will allow you (for example) to later swap out the concrete implementation to a cached reader (see Caching section, below).
-
 ## Usage with custom annotation classes
 You can also use custom annotation classes, and the annotation reader will attempt to return an instance of your class.
 You don't have to tell the reader about your class, or register any namespaces, or use any annotations on it. 
 
-For example, if you have a class with a mandatory constructor argument, like this:
+For example, if you have a class with a mandatory constructor argument, a public property, and a protected property with a getter and setter like this:
 
 ```php
 namespace MyNamespace\Annotations;
 
 class MyAnnotation
 {
-    public string $name;
-    public string $childClassNameName;
-    public int $value = 100;
+    private string $name;
+    public string $childClassName;
+    protected int $value = 100;
     
     public function __construct(string $name)
     {
         $this->name = $name;
+    }
+    
+    public function setValue(int $value): void
+    {
+        $this->value = $value;
+    }
+    
+    public function getValue(): int
+    {
+        return $this->value;
     }
 }
 ```
@@ -99,7 +103,7 @@ class MyEntity2
 {
     /**
      * @var OtherClass
-     * @AnnotationAlias(name="nameValue", childClassNameName="OtherClass")
+     * @AnnotationAlias(name="nameValue", childClassNameName="OtherClass", value=200)
      */
     public $childClassName;
 }
@@ -113,11 +117,11 @@ use MyNamespace\Annotations\MyAnnotation;
 use MyNamespace\Entities\MyEntity2;
 
 $annotationReader = new AnnotationReader();
-$annotationReader->setClassNameAttributes(['childClassNameName']);
+$annotationReader->setClassNameAttributes(['childClassName']);
 $annotation = $annotationReader->getAnnotationFromProperty(MyEntity2::class, 'childClassName', MyAnnotation::class);
 
 echo "Name: " . $annotation->name . "\n";
-echo "Child Class Name: " . $annotation->childClassNameName . "\n";
+echo "Child Class Name: " . $annotation->childClassName . "\n";
 echo "Value: " . $annotation->value;
 ```
 
@@ -126,10 +130,16 @@ echo "Value: " . $annotation->value;
 ```
 Name: nameValue
 Child Class Name: MyNamespace\ValueObjects\OtherClass
-Value: 100
+Value: 200
 ```
 
-When populating your object, the annotation reader will check to see if there are any mandatory constructor arguments, and will pass any matching values into the constructor. It will then go through all of the defined attributes, and if there is a matching property name, it will set that property to the value of the attribute.
+When populating your object, the annotation reader will check to see if there are any mandatory constructor arguments, and will pass any matching values into the constructor. It will then go through all of the defined attributes, and if there is a matching property name, it will set that property to the value of the attribute (using a setter if the property is not public and there is a method with a matching name prefixed with 'set').
+
+## Using the interface
+
+The annotation reader implements AnnotationReaderInterface, which extends the Doctrine Reader interface if it exists. You can therefore pass an instance of AnnotationReader to any service that requires the Doctrine Reader interface. 
+
+When type-hinting for an annotation reader in your own code, you should always hint on `AnnotationReaderInterface` (or Doctrine's `Reader`) - do not hint on `AnnotationReader` itself. This will allow you (for example) to later swap out the concrete implementation to a cached reader (see Caching section, below).
 
 ## Silent operation
 
