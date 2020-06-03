@@ -75,8 +75,8 @@ class DocParser
         string $commentKey,
         string $annotationName
     ) {
-        if (empty($this->annotations[$reflectionClass->getName()][$commentKey])) {
-            $this->parseDocComment($reflectionClass, $docComment, $commentKey);
+        if (empty($this->annotations[$reflectionClass->getName()][$commentKey][$annotationName])) {
+            $this->parseDocComment($reflectionClass, $docComment, $commentKey, $annotationName);
         }
 
         $result = $this->annotations[$reflectionClass->getName()][$commentKey][$annotationName] ?? null;
@@ -91,16 +91,27 @@ class DocParser
      * @param \ReflectionClass $hostReflectionClass Reflection of the class that contains the doc comment.
      * @param string $docComment The full doc comment to parse.
      * @param string $commentKey Unique identifier for this comment within the class (eg. p#myProperty, m#myMethod).
+     * @param string $annotationClassOverride Where an unqualified class name is used as an annotation, you can specify
+     * the fully qualified class name so that an instance of it can be created.
      */
-    public function parseDocComment(\ReflectionClass $hostReflectionClass, string $docComment, string $commentKey): void
-    {
+    public function parseDocComment(
+        \ReflectionClass $hostReflectionClass,
+        string $docComment,
+        string $commentKey,
+        string $annotationClassOverride = ''
+    ): void {
         $this->hostReflectionClass = $hostReflectionClass;
         foreach ($this->getAnnotationList($docComment) ?? [] as $index => $annotationKvp) {
             $annotationName = $annotationKvp[0];
             $annotationValue = trim($annotationKvp[1]);
             $annotationClass = $this->aliasFinder->findClassForAlias($hostReflectionClass, $annotationName, false);
             try {
-                $this->annotations[$hostReflectionClass->getName()][$commentKey][$annotationClass] = $this->convertValueToObject($annotationName, $annotationValue, $annotationClass);
+                $object = $this->convertValueToObject($annotationName, $annotationValue, $annotationClass, $annotationClassOverride);
+                $thisAnnotationList =& $this->annotations[$hostReflectionClass->getName()][$commentKey];
+                $thisAnnotationList[$annotationClass] = $object;
+                if ($annotationClassOverride && $annotationClassOverride != $annotationClass) {
+                    $thisAnnotationList[$annotationClassOverride] ??= $object;
+                }
             } catch (\Exception $ex) {
                 //Cannot be hydrated as an object, so return generic
                 $this->populateGenericAnnotation($annotationName, $annotationValue, $commentKey);
@@ -221,8 +232,19 @@ class DocParser
      * @throws AnnotationReaderException
      * @throws \ReflectionException
      */
-    private function convertValueToObject(string $annotation, string $value, string $className): ?object
-    {
+    private function convertValueToObject(
+        string $annotation,
+        string $value,
+        string $className,
+        string $classNameOverride
+    ): ?object {
+        if (!class_exists($className)
+            && strlen($classNameOverride) > 0
+            && substr($classNameOverride, 0 - strlen($className)) == $className
+        ) {
+            //Attempt to load the override class for an unqualified annotation.
+            $className = $classNameOverride;
+        }
         $this->properties[$className] = $this->extractPropertyValues($value);
         $annotationReflectionClass = new \ReflectionClass($className);
         $constructor = $annotationReflectionClass->getConstructor();

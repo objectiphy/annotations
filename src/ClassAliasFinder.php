@@ -52,7 +52,10 @@ class ClassAliasFinder
         $usedNamespaces = [];
         $this->populateUsedNamespaces($reflectionClass, $usedNamespaces);
         foreach ($usedNamespaces as $useNamespace => $nsAlias) {
-            if (($nsAlias == '' || substr($alias, 0, strlen($nsAlias)) == $nsAlias)) {
+            if (($nsAlias == '' 
+                || substr($alias, 0, strlen($nsAlias)) == $nsAlias)
+                && (strlen($alias) == strlen($nsAlias) || substr($alias, strlen($nsAlias), 1) == '\\') //Rule out coincidental partial match (eg. alias 'Column' with namespace alias 'Col')
+            ) {
                 $className = rtrim($useNamespace . '\\' . substr($alias, strlen($nsAlias) + (strlen($nsAlias) > 0 ? 1 : 0)), '\\');
                 if (($nsAlias && !$checkExists) || class_exists($className)) {
                     return $className;

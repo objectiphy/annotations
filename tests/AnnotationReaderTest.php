@@ -10,6 +10,7 @@ use Objectiphy\Annotations\AnnotationReaderException;
 use Objectiphy\Annotations\AnnotationReaderInterface;
 use Objectiphy\Annotations\CachedAnnotationReader;
 use Objectiphy\Annotations\PsrSimpleCacheInterface;
+use Objectiphy\Annotations\Tests\Annotations\Column;
 use Objectiphy\Annotations\Tests\Entity\TestEntity;
 use Objectiphy\Annotations\Tests\Annotations\Relationship;
 use Objectiphy\Annotations\Tests\Annotations\Table;
@@ -47,6 +48,12 @@ class AnnotationReaderTest extends TestCase
         $this->assertInstanceOf(Relationship::class, $relationship);
         $this->assertSame('one_to_one', $relationship->relationshipType);
         $this->assertSame('some\ns\ClassB', $relationship->getChildClassName());
+
+        //Unqualified
+        $column = $this->object->getAnnotationFromProperty(TestEntity::class, 'unqualifiedAnnotation', Column::class);
+        $this->assertInstanceOf(Column::class, $column);
+        $this->assertSame('int', $column->type);
+        $this->assertSame('some_column_or_other', $column->name);
 
         //Sub class, referring to a property on the super class
         $this->object->setClassNameAttributes([]);

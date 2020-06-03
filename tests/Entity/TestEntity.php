@@ -33,6 +33,12 @@ use some\ns\
 class TestEntity
 {
     /**
+     * This is to test loading an annotation without a use statement (as per legacy Doctrine simple annotation reader).
+     * @Column(type="int", name="some_column_or_other")
+     */
+    protected $unqualifiedAnnotation;
+    
+    /**
      * @var ClassB
      * @ObjectiphyRelationship(childClassName="ClassB",
      *     relationshipType="one_to_one"
