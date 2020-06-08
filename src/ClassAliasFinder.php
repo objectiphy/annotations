@@ -26,7 +26,7 @@ class ClassAliasFinder
         $usedNamespaces = [];
         $this->populateUsedNamespaces($reflectionClass, $usedNamespaces);
         foreach ($usedNamespaces as $useNamespace => $alias) {
-            if (substr($className, 0, strlen($useNamespace) + 1) == $useNamespace . '\\') {
+            if (strpos($className, $useNamespace . '\\') === 0) {
                 $aliasParts = array_filter([$alias, substr($className, strlen($useNamespace) + 1)]);
                 $aliases[] = implode('\\', $aliasParts);
             }
@@ -51,19 +51,25 @@ class ClassAliasFinder
         $this->namespace = '';
         $usedNamespaces = [];
         $this->populateUsedNamespaces($reflectionClass, $usedNamespaces);
+        $className = '';
         foreach ($usedNamespaces as $useNamespace => $nsAlias) {
-            if (($nsAlias == '' 
-                || substr($alias, 0, strlen($nsAlias)) == $nsAlias)
-                && (strlen($alias) == strlen($nsAlias) || substr($alias, strlen($nsAlias), 1) == '\\') //Rule out coincidental partial match (eg. alias 'Column' with namespace alias 'Col')
-            ) {
-                $className = rtrim($useNamespace . '\\' . substr($alias, strlen($nsAlias) + (strlen($nsAlias) > 0 ? 1 : 0)), '\\');
-                if (($nsAlias && !$checkExists) || class_exists($className)) {
-                    return $className;
+            if (strlen($nsAlias) > 0) {
+                if ($alias == $nsAlias) { //Class match
+                    $className = $useNamespace;
+                } elseif (strpos($alias, $nsAlias . '\\') === 0) { //Namespace match
+                    $className = $useNamespace . substr($alias, strlen($nsAlias));
                 }
             }
         }
 
-        return $emptyOnFailure ? '' : $alias;
+        if (!$className) { //Assume same namespace as host class - in this case, always check it exists
+            $className = $this->namespace . '\\' . $alias;
+            $className = class_exists($className) ? $className : '';
+        } else {
+            $className = !$checkExists || class_exists($className) ? $className : '';
+        }
+
+        return $className ?: ($emptyOnFailure ? '' : $alias);
     }
 
     /**

@@ -37,7 +37,7 @@ class TestEntity
      * @Column(type="int", name="some_column_or_other")
      */
     protected $unqualifiedAnnotation;
-    
+
     /**
      * @var ClassB
      * @ObjectiphyRelationship(childClassName="ClassB",

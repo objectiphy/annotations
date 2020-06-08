@@ -54,7 +54,7 @@ class AnnotationReaderTest extends TestCase
         $this->assertInstanceOf(Column::class, $column);
         $this->assertSame('int', $column->type);
         $this->assertSame('some_column_or_other', $column->name);
-
+        
         //Sub class, referring to a property on the super class
         $this->object->setClassNameAttributes([]);
         $relationship2 = $this->object->getAnnotationFromProperty(TestEntitySubClass::class, 'cb', Relationship::class);
