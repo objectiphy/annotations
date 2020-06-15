@@ -109,7 +109,7 @@ class DocParser
                 $object = $this->convertValueToObject($annotationName, $annotationValue, $annotationClass, $annotationClassOverride);
                 $thisAnnotationList =& $this->annotations[$hostReflectionClass->getName()][$commentKey];
                 $thisAnnotationList[$annotationClass] = $object;
-                if ($annotationClassOverride && $annotationClassOverride != $annotationClass) {
+                if ($this->isUnqualifiedMatch($annotationClass, $annotationClassOverride)) {
                     $thisAnnotationList[$annotationClassOverride] ??= $object;
                 }
             } catch (\Exception $ex) {
@@ -117,6 +117,21 @@ class DocParser
                 $this->populateGenericAnnotation($annotationName, $annotationValue, $commentKey);
             }
         }
+    }
+
+    /**
+     * Check whether $annotationClass is an unqualified match for $annotationClassOverride. Eg. Column is a match
+     * for \Objectiphy\Objectiphy\Mapping\Column (but ORM\Column is not, and neither is ColumnSomething)
+     * @param string $annotationClass
+     * @param string $annotationClassOverride
+     * @return bool Whether or not $annotationClassOverride ends with $annotationClass
+     */
+    private function isUnqualifiedMatch(string $annotationClass, string $annotationClassOverride)
+    {
+        return $annotationClassOverride
+            && strpos($annotationClass, '\\') === false
+            && strpos($annotationClassOverride, '\\') !== false
+            && substr($annotationClassOverride, strrpos($annotationClassOverride, '\\') + 1) == $annotationClass;
     }
 
     /**
