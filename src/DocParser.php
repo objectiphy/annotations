@@ -372,6 +372,7 @@ class DocParser
             if (property_exists($object, $property)) {
                 if (in_array($property, $this->classNameAttributes)) {
                     $propertyValue = $this->aliasFinder->findClassForAlias($this->hostReflectionClass, $propertyValue) ?: $propertyValue;
+                    $this->properties[get_class($object)][$property] = $propertyValue; //Update the list
                 }
                 $reflectionProperty = new \ReflectionProperty($object, $property);
                 if ($reflectionProperty->isPublic()) {

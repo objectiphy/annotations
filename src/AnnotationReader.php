@@ -68,7 +68,7 @@ class AnnotationReader implements AnnotationReaderInterface
      */
     public function getAttributesRead(string $className): array
     {
-        return $this->docParser->getProperties();
+        return $this->docParser->getProperties($className);
     }
 
     /**
