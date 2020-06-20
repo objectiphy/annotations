@@ -13,15 +13,15 @@ class AnnotationReader implements AnnotationReaderInterface
 {
     /** @var string In case we are in silent mode, any error messages will be reported here. */
     public string $lastErrorMessage = '';
-
-    private ?\ReflectionClass $reflectionClass;
-    private DocParser $docParser;
     private bool $throwExceptions;
-    private ClassAliasFinder $aliasFinder;
+
+    private ?\ReflectionClass $reflectionClass = null;
+    private DocParser $docParser;
+    private AnnotationResolver $resolver;
 
     /**
      * @param DocParser $docParser
-     * @param ClassAliasFinder $aliasFinder
+     * @param AnnotationResolver $resolver
      * @param array $classNameAttributes If any attributes of the annotation need to be resolved to fully qualified
      * class names, specify the attribute names here.
      * @param bool $throwExceptions For silent operation, set to false, and any errors will be ignored, and annotations
@@ -30,14 +30,23 @@ class AnnotationReader implements AnnotationReaderInterface
      */
     public function __construct(
         DocParser $docParser = null,
-        ClassAliasFinder $aliasFinder = null,
+        AnnotationResolver $resolver = null,
         array $classNameAttributes = [],
         $throwExceptions = true
     ) {
-        $this->docParser = $docParser ?? new DocParser();
-        $this->aliasFinder = $aliasFinder ?? new ClassAliasFinder();
         $this->setThrowExceptions($throwExceptions);
+        $this->docParser = $docParser ?? new DocParser();
+        $this->resolver = $resolver ?? new AnnotationResolver();
         $this->setClassNameAttributes($classNameAttributes);
+    }
+
+    /**
+     * Just pass it along
+     * @param array $classNameAttributes
+     */
+    public function setClassNameAttributes(array $classNameAttributes): void
+    {
+        $this->resolver->setClassNameAttributes($classNameAttributes);
     }
 
     /**
@@ -50,42 +59,32 @@ class AnnotationReader implements AnnotationReaderInterface
     }
 
     /**
-     * Identify which attributes on the annotations we are reading refer to class names that might need to be expanded
-     * (ie. where the class name specified in the annotation is relative to a use statement in the same file).
-     * @param array $classNameAttributes
-     */
-    public function setClassNameAttributes(array $classNameAttributes): void
-    {
-        $this->docParser->setClassNameAttributes($classNameAttributes);
-    }
-
-    /**
      * Returns an associative array of the properties that were specified for a custom annotation. We need this because 
      * it is impossible to tell otherwise whether a value was present in the annotation, or whether it is just the 
      * default value for the object or was set separately.
      * @param string $className
      * @return array
      */
-    public function getAttributesRead(string $className): array
+    public function getAttributesRead(string $key): array
     {
-        return $this->docParser->getProperties($className);
+        return $this->resolver->getAttributesRead($key);
     }
 
     /**
      * @param string $className Name of class that has (or might have) the annotation.
      * @param string $annotationName Name of the annotation.
+     * @return object | array | null If the annotation appears more than once, an array will be returned
+     * @return array | object | null
      * @throws AnnotationReaderException
      * @throws \ReflectionException
      */
-    public function getAnnotationFromClass(string $className, string $annotationName): ?object
+    public function getAnnotationFromClass(string $className, string $annotationName)
     {
         $this->lastErrorMessage = '';
         try {
             $this->assertClassExists($className);
             $this->reflectionClass = new \ReflectionClass($className);
-            $docComment = $this->reflectionClass->getDocComment();
-
-            return $this->parseDocComment($docComment, 'c#' . $className, $annotationName);
+            return $this->getClassAnnotation($this->reflectionClass, $annotationName);
         } catch (\Exception $ex) {
             return $this->handleException($ex);
         }
@@ -95,10 +94,11 @@ class AnnotationReader implements AnnotationReaderInterface
      * @param string $className Name of class that has the property whose annotation we want.
      * @param string $propertyName Name of property that has (or might have) the annotation.
      * @param string $annotationName Name of the annotation.
+     * @return object | array | null If the annotation appears more than once, an array will be returned
      * @throws AnnotationReaderException
      * @throws \ReflectionException
      */
-    public function getAnnotationFromProperty(string $className, string $propertyName, string $annotationName): ?object
+    public function getAnnotationFromProperty(string $className, string $propertyName, string $annotationName)
     {
         $this->lastErrorMessage = '';
         try {
@@ -109,9 +109,7 @@ class AnnotationReader implements AnnotationReaderInterface
             }
             if ($this->reflectionClass && $this->reflectionClass->hasProperty($propertyName)) {
                 $reflectionProperty = $this->reflectionClass->getProperty($propertyName);
-                $docComment = $reflectionProperty->getDocComment();
-
-                return $this->parseDocComment($docComment, 'p#' . $reflectionProperty->getName(), $annotationName);
+                return $this->getPropertyAnnotation($reflectionProperty, $annotationName);
             } else {
                 $errorMessage = sprintf('Class %1$s does not have a property named %2$s.', $className, $propertyName);
                 throw new AnnotationReaderException($errorMessage);
@@ -125,10 +123,11 @@ class AnnotationReader implements AnnotationReaderInterface
      * @param string $className Name of class that has the method whose annotation we want.
      * @param string $methodName Name of the method that has (or might have) the annotation.
      * @param string $annotationName Name of the annotation.
+     * @return object | array | null If the annotation appears more than once, an array will be returned
      * @throws AnnotationReaderException
      * @throws \ReflectionException
      */
-    public function getAnnotationFromMethod(string $className, string $methodName, string $annotationName): ?object
+    public function getAnnotationFromMethod(string $className, string $methodName, string $annotationName)
     {
         $this->lastErrorMessage = '';
         try {
@@ -139,9 +138,7 @@ class AnnotationReader implements AnnotationReaderInterface
             }
             if ($this->reflectionClass && $this->reflectionClass->hasMethod($methodName)) {
                 $reflectionMethod = $this->reflectionClass->getMethod($methodName);
-                $docComment = $reflectionMethod->getDocComment();
-
-                return $this->parseDocComment($docComment, 'm#' . $reflectionMethod->getName(), $annotationName);
+                return $this->getMethodAnnotation($reflectionMethod, $annotationName);
             } else {
                 $errorMessage = sprintf('Class %1$s does not have a method named %2$s.', $className, $methodName);
                 throw new AnnotationReaderException($errorMessage);
@@ -154,10 +151,8 @@ class AnnotationReader implements AnnotationReaderInterface
     /******************************************************************************************************************
      * The following public methods are here for compatibility with the Doctrine Reader interface. If you need to pass
      * a Doctrine Reader to some other service, you can use an instance of this class insetad of the Doctrine reader 
-     * (just seemed like a cool thing to support, probably useless in real life though!) - these methods could 
-     * be removed and the class would still work, however, it is also handy to be able to pass in a reflection object 
-     * to obtain annotation information if you already have one available - slightly more efficient than relying on 
-     * this class to create the reflection objects for you.
+     * (just seemed like a cool thing to support, probably useless in real life though!). These methods are also called
+     * internally from the other public methods to keep things DRY.
      *****************************************************************************************************************/
 
     /**
@@ -171,8 +166,7 @@ class AnnotationReader implements AnnotationReaderInterface
     {
         try {
             $this->reflectionClass = $class;
-            $docComment = $this->reflectionClass->getDocComment();
-            return $this->parseDocComment($docComment, 'c#' . $class->getName(), $annotationName);
+            return $this->resolveClassAnnotation($annotationName);
         } catch (\Exception $ex) {
             return $this->handleException($ex);
         }
@@ -189,8 +183,7 @@ class AnnotationReader implements AnnotationReaderInterface
     {
         try {
             $this->reflectionClass = $property->getDeclaringClass();
-            $docComment = $property->getDocComment();
-            return $this->parseDocComment($docComment, 'p#' . $property->getName(), $annotationName);
+            return $this->resolvePropertyAnnotation($property->getName(), $annotationName);
         } catch (\Exception $ex) {
             return $this->handleException($ex);
         }
@@ -207,8 +200,7 @@ class AnnotationReader implements AnnotationReaderInterface
     {
         try {
             $this->reflectionClass = $method->getDeclaringClass();
-            $docComment = $method->getDocComment();
-            return $this->parseDocComment($docComment, 'm#' . $method->getName(), $annotationName);
+            return $this->resolveMethodAnnotation($method->getName(), $annotationName);
         } catch (\Exception $ex) {
             return $this->handleException($ex);
         }
@@ -224,9 +216,7 @@ class AnnotationReader implements AnnotationReaderInterface
     {
         try {
             $this->reflectionClass = $class;
-            $docComment = $class->getDocComment();
-
-            return $this->unifiedArrayValues($this->parseDocComment($docComment, 'c#' . $class->getName()));
+            return $this->unifiedArrayValues($this->resolveClassAnnotations());
         } catch (\Exception $ex) {
             return $this->handleException($ex, true);
         }
@@ -241,8 +231,7 @@ class AnnotationReader implements AnnotationReaderInterface
     {
         try {
             $this->reflectionClass = $property->getDeclaringClass();
-            $docComment = $property->getDocComment();
-            return $this->unifiedArrayValues($this->parseDocComment($docComment, 'p#' . $property->getName()));
+            return $this->unifiedArrayValues($this->resolvePropertyAnnotations($property->getName()));
         } catch (\Exception $ex) {
             return $this->handleException($ex, true);
         }
@@ -257,36 +246,35 @@ class AnnotationReader implements AnnotationReaderInterface
     {
         try {
             $this->reflectionClass = $method->getDeclaringClass();
-            $docComment = $method->getDocComment();
-            return $this->unifiedArrayValues($this->parseDocComment($docComment, 'm#' . $method->getName()));
+            return $this->unifiedArrayValues($this->resolveMethodAnnotations($method->getName()));
         } catch (\Exception $ex) {
             return $this->handleException($ex, true);
         }
     }
 
-    /**
-     * Given an associative array, which might contain indexed arrays, combine into one indexed array. For example:
-     * [
-     *   'param' => [
-     *     0 => 'value1',
-     *     1 => 'value2'
-     *   ],
-     *   'var' => 'value3',
-     *   'something_else' => [
-     *     0 => 'value4'
-     *   ]
-     * ]
-     *
-     * ...would return:
-     *
-     * [
-     *   0 => 'value1',
-     *   1 => 'value2',
-     *   2 => 'value3',
-     *   3 => 'value4'
-     * ]
-     * @param array $array
-     */
+//    /**
+//     * Given an associative array, which might contain indexed arrays, combine into one indexed array. For example:
+//     * [
+//     *   'param' => [
+//     *     0 => 'value1',
+//     *     1 => 'value2'
+//     *   ],
+//     *   'var' => 'value3',
+//     *   'something_else' => [
+//     *     0 => 'value4'
+//     *   ]
+//     * ]
+//     *
+//     * ...would return:
+//     *
+//     * [
+//     *   0 => 'value1',
+//     *   1 => 'value2',
+//     *   2 => 'value3',
+//     *   3 => 'value4'
+//     * ]
+//     * @param array $array
+//     */
     private function unifiedArrayValues(array $array): array
     {
         $return = [];
@@ -300,29 +288,135 @@ class AnnotationReader implements AnnotationReaderInterface
 
         return $return;
     }
+//    private function unifiedArrayValues(array $array): array
+//    {
+//        return array_values($array);
+//    }
 
     /******************************************************************************************************************
      * End of Doctrine compatibility methods.
      *****************************************************************************************************************/
 
     /**
-     * Defer to the parser after validation.
-     * @param string $docComment
-     * @param string $annotationName
-     * @return object|array|null
-     * @throws AnnotationReaderException
+     * Defer to the parser and resolver
      */
-    private function parseDocComment(string $docComment, string $commentKey, string $annotationName = '**ALL**')
+    private function resolveClassAnnotations(): array
     {
-        if ($annotationName != '**ALL**'  && !class_exists($annotationName)) {
-            $annotationName = $this->aliasFinder->findClassForAlias($this->reflectionClass, $annotationName, false);
+        $resolvedAnnotations = [];
+        $annotations = $this->docParser->getClassAnnotations($this->reflectionClass);
+        foreach ($annotations ?? [] as $index => $nameValuePair) {
+            foreach ($nameValuePair as $name => $value) {
+                $resolved = $this->resolver->resolveClassAnnotation($this->reflectionClass, $name, $value);
+                $this->addResolvedToIndex($resolvedAnnotations, $name, $resolved);
+            }
         }
         
-        if ($annotationName == '**ALL**') {
-            return $this->docParser->getAllAnnotations($this->reflectionClass, $docComment, $commentKey);
-        } else {
-            return $this->docParser->getAnnotation($this->reflectionClass, $docComment, $commentKey, $annotationName);
+        return $resolvedAnnotations;
+    }
+
+    private function resolvePropertyAnnotations(string $propertyName): array
+    {
+        $resolvedAnnotations = [];
+        $annotations = $this->docParser->getPropertyAnnotations($this->reflectionClass);
+        if (!empty($annotations[$propertyName])) {
+            foreach ($annotations[$propertyName] as $nameValuePair) {
+                foreach ($nameValuePair as $name => $value) {
+                    $resolved = $this->resolver->resolvePropertyAnnotation($this->reflectionClass, $propertyName, $name, $value);
+                    $this->addResolvedToIndex($resolvedAnnotations, $name, $resolved);
+                }
+            }
         }
+        
+        return $resolvedAnnotations;
+    }
+
+    private function resolveMethodAnnotations(string $methodName): array
+    {
+        $resolvedAnnotations = [];
+        $annotations = $this->docParser->getMethodAnnotations($this->reflectionClass);
+        if (!empty($annotations[$methodName])) {
+            foreach ($annotations[$methodName] as $nameValuePair) {
+                foreach ($nameValuePair as $name => $value) {
+                    $resolved = $this->resolver->resolveMethodAnnotation($this->reflectionClass, $methodName, $name, $value);
+                    $this->addResolvedToIndex($resolvedAnnotations, $name, $resolved);
+                }
+            }
+        }
+
+        return $resolvedAnnotations;
+    }
+
+    private function resolveClassAnnotation(string $annotationName)
+    {
+        $resolvedAnnotations = $this->resolveClassAnnotations();
+        return $resolvedAnnotations[$annotationName] ?? null;
+    }
+
+    private function resolvePropertyAnnotation(string $propertyName, string $annotationName)
+    {
+        $resolvedAnnotations = $this->resolvePropertyAnnotations($propertyName);
+        $this->resolveUnqualified($resolvedAnnotations, $annotationName);
+        return $resolvedAnnotations[$annotationName] ?? null;
+    }
+
+    /**
+     * If you use unqualified annotations, it will slow things down, but can still be supported.
+     * @param array $resolvedAnnotations
+     * @param string $annotationName
+     */
+    private function resolveUnqualified(array &$resolvedAnnotations, string $annotationName)
+    {
+        if (!isset($resolvedAnnotations[$annotationName])) {
+            $shortClassName = $this->getShortClassName($annotationName);
+            $generic = $resolvedAnnotations[$shortClassName] ?? null;
+            if ($generic && $generic instanceof AnnotationGeneric) {
+                $resolvedAnnotations[$annotationName] = $this->resolver->convertGenericToClass($generic, $annotationName);
+            }
+        }
+    }
+
+    private function resolveMethodAnnotation(string $methodName, string $annotationName)
+    {
+        $resolvedAnnotations = $this->resolveMethodAnnotations($methodName);
+        return $resolvedAnnotations[$annotationName] ?? null;
+    }
+
+    /**
+     * Add alias, full class name, and unqualified class name to the index
+     * @param array $index
+     * @param string $name
+     * @param $resolvedAnnotation
+     */
+    private function addResolvedToIndex(array &$index, string $name, $resolvedAnnotation)
+    {
+        $resolvedAnnotations = is_array($resolvedAnnotation) ? $resolvedAnnotation : [$resolvedAnnotation];
+        foreach ($resolvedAnnotations as $annotation) {
+            if (!($annotation instanceof AnnotationGeneric)) {
+                $resolvedClassName = get_class($annotation);
+                if ($resolvedClassName && $resolvedClassName != $name) {
+                    $this->addToIndex($index, $resolvedClassName, $annotation);
+                    return;
+                }
+            }
+            $this->addToIndex($index, $name, $annotation);
+        }
+    }
+
+    private function addToIndex(array &$index, $name, $value)
+    {
+        if (isset($index[$name])) {
+            if (!is_array($index[$name])) {
+                $index[$name] = [$index[$name]];
+            }
+            $index[$name][] = $value;
+        } else {
+            $index[$name] = $value;
+        }
+    }
+
+    private function getShortClassName(string $fullClassName)
+    {
+        return substr(strrchr($fullClassName, '\\'), 1);
     }
 
     /**

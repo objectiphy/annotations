@@ -17,6 +17,15 @@ class AnnotationGeneric
     /** @var string Raw annotation value as a string. */
     public string $value;
 
+    /** @var \ReflectionClass Class on which this annotation is defined. */
+    public \ReflectionClass $parentClass;
+    
+    /** @var \ReflectionProperty|null If this is a property annotation, the property it relates to. */
+    public ?\ReflectionProperty $parentProperty = null;
+    
+    /** @var \ReflectionMethod|null If this is a method annotation, the method it relates to. */
+    public ?\ReflectionMethod $parnetMethod = null;
+    
     /** @var array Where more than one word precedes a dollar sign, the words will be stored here. */
     public array $preVariableParts = [];
 
@@ -91,8 +100,17 @@ class AnnotationGeneric
      * @param string $value Full raw value of the annotation.
      * @param \closure $aliasFinder Closure that takes a single argument to resolve an alias into a class name.
      */
-    public function __construct(string $name, string $value = '', \closure $aliasFinder)
-    {
+    public function __construct(
+        string $name, 
+        string $value = '', 
+        \closure $aliasFinder, 
+        \ReflectionClass $reflectionClass, 
+        ?\ReflectionProperty $reflectionProperty = null, 
+        ?\ReflectionMethod $reflectionMethod = null
+    ) {
+        $this->parentClass = $reflectionClass;
+        $this->parentProperty = $reflectionProperty;
+        $this->parentMethod = $reflectionMethod;
         $this->aliasFinder = $aliasFinder;
         $this->name = $name;
         $this->value = $value;
@@ -150,5 +168,19 @@ class AnnotationGeneric
         }
 
         return $before;
+    }
+    
+    public function getKeyPrefix()
+    {
+        $keyPrefix = $this->parentClass . '#';
+        if ($this->parentProperty) {
+            $keyPrefix .= 'p:' . $this->parentProperty->getName() . '#';
+        } elseif ($this->parentMethod) {
+            $keyPrefix .= 'm:' . $this->parentMethod->getName() . '#';
+        } else {
+            $keyPrefix .= 'c#';
+        }
+        
+        return $keyPrefix;
     }
 }
