@@ -24,7 +24,7 @@ class AnnotationGeneric
     public ?\ReflectionProperty $parentProperty = null;
     
     /** @var \ReflectionMethod|null If this is a method annotation, the method it relates to. */
-    public ?\ReflectionMethod $parnetMethod = null;
+    public ?\ReflectionMethod $parentMethod = null;
     
     /** @var array Where more than one word precedes a dollar sign, the words will be stored here. */
     public array $preVariableParts = [];
@@ -37,7 +37,10 @@ class AnnotationGeneric
 
     /** @var string Remaining text is treated as a comment - any further parsing you'll have to do yourself! */
     public string $comment;
-    
+
+    /**
+     * @var \closure Closure to call to resolve an alias into a full class name for the $type property.
+     */
     private \closure $aliasFinder;
 
     /**
@@ -93,12 +96,15 @@ class AnnotationGeneric
      *
      * AnnotationGeneric
      *   $name -> 'var'
-     *   $value -> 'MyClass words here $variableName
+     *   $value -> 'MyClass'
      *   $type -> 'MyNamespace\MyClass'
      *
      * @param string $name Name of the annotation.
      * @param string $value Full raw value of the annotation.
      * @param \closure $aliasFinder Closure that takes a single argument to resolve an alias into a class name.
+     * @param \ReflectionClass $reflectionClass Class on which this annotaiton resides.
+     * @param \ReflectionProperty $reflectionProperty If this is a property annotation, the property on which it resides.
+     * @param \ReflectionMethod $reflectionProperty If this is a method annotation, the method on which it resides.
      */
     public function __construct(
         string $name, 
@@ -139,6 +145,7 @@ class AnnotationGeneric
 
         if (strlen($value) > $commentStart) { // C'mere, there's more...
             $remainder = trim(substr($value, $commentStart));
+            //I pity the fool who separates words with something other than a space character.
             if ($startOfVariable === false && strpos($remainder, ' ') === false) {
                 //Single word after the annotation name - try to resolve it to a class name
                 $this->type = ($this->aliasFinder)($remainder);
@@ -162,25 +169,27 @@ class AnnotationGeneric
             if (count($beforeParts) == 1) {
                 $this->type = $this->aliasFinder ? ($this->aliasFinder)(trim($beforeParts[0])) : trim($beforeParts[0]);
             } else {
-                $keys = preg_filter('/^/', 'part_', range(1, count($beforeParts)));
+                $keys = preg_filter('/^/', 'part_', range(1, count($beforeParts))); //Fill an array: [part_1, part2, etc.]
                 $this->preVariableParts = $this->preVariableParts + array_combine($keys, $beforeParts);
             }
         }
 
         return $before;
     }
-    
-    public function getKeyPrefix()
+
+    /**
+     * @return string Item name that is used as a key to cache resolved annotations. For class annotations, this will
+     * be an empty string. For property annotations, it will be p:<propertyName> and for methods m:<methodName>.
+     */
+    public function getItemName()
     {
-        $keyPrefix = $this->parentClass . '#';
+        $itemName = '';
         if ($this->parentProperty) {
-            $keyPrefix .= 'p:' . $this->parentProperty->getName() . '#';
+            $itemName = 'p:' . $this->parentProperty->getName();
         } elseif ($this->parentMethod) {
-            $keyPrefix .= 'm:' . $this->parentMethod->getName() . '#';
-        } else {
-            $keyPrefix .= 'c#';
-        }
+            $itemName = 'm:' . $this->parentMethod->getName();
+        } 
         
-        return $keyPrefix;
+        return $itemName;
     }
 }

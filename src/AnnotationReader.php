@@ -16,8 +16,13 @@ class AnnotationReader implements AnnotationReaderInterface
     private bool $throwExceptions;
 
     private ?\ReflectionClass $reflectionClass = null;
+    private string $class = ''; //Just makes code more concise instead of grabbing from $reflectionClass all the time
     private DocParser $docParser;
     private AnnotationResolver $resolver;
+
+    private array $resolvedClassAnnotations = [];
+    private array $resolvedPropertyAnnotations = [];
+    private array $resolvedMethodAnnotations = [];
 
     /**
      * @param DocParser $docParser
@@ -47,6 +52,9 @@ class AnnotationReader implements AnnotationReaderInterface
     public function setClassNameAttributes(array $classNameAttributes): void
     {
         $this->resolver->setClassNameAttributes($classNameAttributes);
+        $this->resolvedClassAnnotations = [];
+        $this->resolvedPropertyAnnotations = [];
+        $this->resolvedMethodAnnotations = [];
     }
 
     /**
@@ -65,9 +73,9 @@ class AnnotationReader implements AnnotationReaderInterface
      * @param string $className
      * @return array
      */
-    public function getAttributesRead(string $key): array
+    public function getAttributesRead(string $hostClassName, string $itemName, string $annotationClassName): array
     {
-        return $this->resolver->getAttributesRead($key);
+        return $this->resolver->getAttributesRead($hostClassName, $itemName, $annotationClassName);
     }
 
     /**
@@ -83,7 +91,7 @@ class AnnotationReader implements AnnotationReaderInterface
         $this->lastErrorMessage = '';
         try {
             $this->assertClassExists($className);
-            $this->reflectionClass = new \ReflectionClass($className);
+            $this->setClass($className);
             return $this->getClassAnnotation($this->reflectionClass, $annotationName);
         } catch (\Exception $ex) {
             return $this->handleException($ex);
@@ -103,9 +111,9 @@ class AnnotationReader implements AnnotationReaderInterface
         $this->lastErrorMessage = '';
         try {
             $this->assertClassExists($className);
-            $this->reflectionClass = new \ReflectionClass($className);
+            $this->setClass($className);
             while ($this->reflectionClass && !$this->reflectionClass->hasProperty($propertyName)) {
-                $this->reflectionClass = $this->reflectionClass->getParentClass() ?: null;
+                $this->setClass('', $this->reflectionClass->getParentClass() ?: null);
             }
             if ($this->reflectionClass && $this->reflectionClass->hasProperty($propertyName)) {
                 $reflectionProperty = $this->reflectionClass->getProperty($propertyName);
@@ -132,9 +140,9 @@ class AnnotationReader implements AnnotationReaderInterface
         $this->lastErrorMessage = '';
         try {
             $this->assertClassExists($className);
-            $this->reflectionClass = new \ReflectionClass($className);
+            $this->setClass($className);
             while ($this->reflectionClass && !$this->reflectionClass->hasMethod($methodName)) {
-                $this->reflectionClass = $this->reflectionClass->getParentClass() ?: null;
+                $this->setClass('', $this->reflectionClass->getParentClass() ?: null);
             }
             if ($this->reflectionClass && $this->reflectionClass->hasMethod($methodName)) {
                 $reflectionMethod = $this->reflectionClass->getMethod($methodName);
@@ -165,7 +173,7 @@ class AnnotationReader implements AnnotationReaderInterface
     public function getClassAnnotation(\ReflectionClass $class, $annotationName)
     {
         try {
-            $this->reflectionClass = $class;
+            $this->setClass('', $class);
             return $this->resolveClassAnnotation($annotationName);
         } catch (\Exception $ex) {
             return $this->handleException($ex);
@@ -182,7 +190,7 @@ class AnnotationReader implements AnnotationReaderInterface
     public function getPropertyAnnotation(\ReflectionProperty $property, $annotationName)
     {
         try {
-            $this->reflectionClass = $property->getDeclaringClass();
+            $this->setClass('', $property->getDeclaringClass());
             return $this->resolvePropertyAnnotation($property->getName(), $annotationName);
         } catch (\Exception $ex) {
             return $this->handleException($ex);
@@ -199,7 +207,7 @@ class AnnotationReader implements AnnotationReaderInterface
     public function getMethodAnnotation(\ReflectionMethod $method, $annotationName)
     {
         try {
-            $this->reflectionClass = $method->getDeclaringClass();
+            $this->setClass('', $method->getDeclaringClass());
             return $this->resolveMethodAnnotation($method->getName(), $annotationName);
         } catch (\Exception $ex) {
             return $this->handleException($ex);
@@ -215,7 +223,7 @@ class AnnotationReader implements AnnotationReaderInterface
     public function getClassAnnotations(\ReflectionClass $class)
     {
         try {
-            $this->reflectionClass = $class;
+            $this->setClass('', $class);
             return $this->unifiedArrayValues($this->resolveClassAnnotations());
         } catch (\Exception $ex) {
             return $this->handleException($ex, true);
@@ -230,7 +238,7 @@ class AnnotationReader implements AnnotationReaderInterface
     public function getPropertyAnnotations(\ReflectionProperty $property)
     {
         try {
-            $this->reflectionClass = $property->getDeclaringClass();
+            $this->setClass('', $property->getDeclaringClass());
             return $this->unifiedArrayValues($this->resolvePropertyAnnotations($property->getName()));
         } catch (\Exception $ex) {
             return $this->handleException($ex, true);
@@ -245,7 +253,7 @@ class AnnotationReader implements AnnotationReaderInterface
     public function getMethodAnnotations(\ReflectionMethod $method)
     {
         try {
-            $this->reflectionClass = $method->getDeclaringClass();
+            $this->setClass('', $method->getDeclaringClass());
             return $this->unifiedArrayValues($this->resolveMethodAnnotations($method->getName()));
         } catch (\Exception $ex) {
             return $this->handleException($ex, true);
@@ -297,53 +305,67 @@ class AnnotationReader implements AnnotationReaderInterface
      * End of Doctrine compatibility methods.
      *****************************************************************************************************************/
 
+    private function setClass(string $className = '', \ReflectionClass $reflectionClass = null)
+    {
+        if (!$reflectionClass && $className) {
+            $reflectionClass = new \ReflectionClass($className);
+        }
+        $this->reflectionClass = $reflectionClass;
+        $this->class = $reflectionClass ? $reflectionClass->getName() : '';
+    }
+
     /**
      * Defer to the parser and resolver
      */
     private function resolveClassAnnotations(): array
     {
-        $resolvedAnnotations = [];
-        $annotations = $this->docParser->getClassAnnotations($this->reflectionClass);
-        foreach ($annotations ?? [] as $index => $nameValuePair) {
-            foreach ($nameValuePair as $name => $value) {
-                $resolved = $this->resolver->resolveClassAnnotation($this->reflectionClass, $name, $value);
-                $this->addResolvedToIndex($resolvedAnnotations, $name, $resolved);
+        if (empty($this->resolvedClassAnnotations[$this->class])) {
+            $this->resolvedClassAnnotations[$this->class] = [];
+            $annotations = $this->docParser->getClassAnnotations($this->reflectionClass);
+            foreach ($annotations ?? [] as $index => $nameValuePair) {
+                foreach ($nameValuePair as $name => $value) {
+                    $resolved = $this->resolver->resolveClassAnnotation($this->reflectionClass, $name, $value);
+                    $this->addResolvedToIndex($this->resolvedClassAnnotations[$this->class], $name, $resolved);
+                }
             }
         }
-        
-        return $resolvedAnnotations;
+
+        return $this->resolvedClassAnnotations[$this->class];
     }
 
     private function resolvePropertyAnnotations(string $propertyName): array
     {
-        $resolvedAnnotations = [];
-        $annotations = $this->docParser->getPropertyAnnotations($this->reflectionClass);
-        if (!empty($annotations[$propertyName])) {
-            foreach ($annotations[$propertyName] as $nameValuePair) {
-                foreach ($nameValuePair as $name => $value) {
-                    $resolved = $this->resolver->resolvePropertyAnnotation($this->reflectionClass, $propertyName, $name, $value);
-                    $this->addResolvedToIndex($resolvedAnnotations, $name, $resolved);
+        if (empty($this->resolvedPropertyAnnotations[$this->class][$propertyName])) {
+            $this->resolvedPropertyAnnotations[$this->class][$propertyName] = [];
+            $annotations = $this->docParser->getPropertyAnnotations($this->reflectionClass);
+            if (!empty($annotations[$propertyName])) {
+                foreach ($annotations[$propertyName] as $nameValuePair) {
+                    foreach ($nameValuePair as $name => $value) {
+                        $resolved = $this->resolver->resolvePropertyAnnotation($this->reflectionClass, $propertyName, $name, $value);
+                        $this->addResolvedToIndex($this->resolvedPropertyAnnotations[$this->class][$propertyName], $name, $resolved);
+                    }
                 }
             }
         }
-        
-        return $resolvedAnnotations;
+
+        return $this->resolvedPropertyAnnotations[$this->class][$propertyName];
     }
 
     private function resolveMethodAnnotations(string $methodName): array
     {
-        $resolvedAnnotations = [];
-        $annotations = $this->docParser->getMethodAnnotations($this->reflectionClass);
-        if (!empty($annotations[$methodName])) {
-            foreach ($annotations[$methodName] as $nameValuePair) {
-                foreach ($nameValuePair as $name => $value) {
-                    $resolved = $this->resolver->resolveMethodAnnotation($this->reflectionClass, $methodName, $name, $value);
-                    $this->addResolvedToIndex($resolvedAnnotations, $name, $resolved);
+        if (empty($this->resolvedMethodAnnotations[$this->class][$methodName])) {
+            $this->resolvedMethodAnnotations[$this->class][$methodName] = [];
+            $annotations = $this->docParser->getMethodAnnotations($this->reflectionClass);
+            if (!empty($annotations[$methodName])) {
+                foreach ($annotations[$methodName] as $nameValuePair) {
+                    foreach ($nameValuePair as $name => $value) {
+                        $resolved = $this->resolver->resolveMethodAnnotation($this->reflectionClass, $methodName, $name, $value);
+                        $this->addResolvedToIndex($this->resolvedMethodAnnotations[$this->class][$methodName], $name, $resolved);
+                    }
                 }
             }
         }
-
-        return $resolvedAnnotations;
+        return $this->resolvedMethodAnnotations[$this->class][$methodName];
     }
 
     private function resolveClassAnnotation(string $annotationName)
@@ -354,9 +376,16 @@ class AnnotationReader implements AnnotationReaderInterface
 
     private function resolvePropertyAnnotation(string $propertyName, string $annotationName)
     {
-        $resolvedAnnotations = $this->resolvePropertyAnnotations($propertyName);
-        $this->resolveUnqualified($resolvedAnnotations, $annotationName);
-        return $resolvedAnnotations[$annotationName] ?? null;
+        $this->resolvePropertyAnnotations($propertyName);
+        $this->resolveUnqualified($this->resolvedPropertyAnnotations[$this->class][$propertyName], $annotationName);
+        return $this->resolvedPropertyAnnotations[$this->class][$propertyName][$annotationName] ?? null;
+    }
+
+    private function resolveMethodAnnotation(string $methodName, string $annotationName)
+    {
+        $this->resolveMethodAnnotations($methodName);
+        $this->resolveUnqualified($this->resolvedMethodAnnotations[$this->class][$methodName], $annotationName);
+        return $this->resolvedMethodAnnotations[$this->class][$methodName][$annotationName] ?? null;
     }
 
     /**
@@ -373,12 +402,6 @@ class AnnotationReader implements AnnotationReaderInterface
                 $resolvedAnnotations[$annotationName] = $this->resolver->convertGenericToClass($generic, $annotationName);
             }
         }
-    }
-
-    private function resolveMethodAnnotation(string $methodName, string $annotationName)
-    {
-        $resolvedAnnotations = $this->resolveMethodAnnotations($methodName);
-        return $resolvedAnnotations[$annotationName] ?? null;
     }
 
     /**

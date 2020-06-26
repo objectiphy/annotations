@@ -44,35 +44,43 @@ class AnnotationResolver
      * Returns an associative array of the properties that were specified for a custom annotation. We need this because
      * it is impossible to tell otherwise whether a value was present in the annotation, or whether it is just the
      * default value for the object or was set separately.
-     * @param string $key Host class name, type (#c# = class, #p:<propertyName># = property, #m:<methodName># = method), 
-     * and annotation name, eg. "MyNamespace\MyEntity#p:MyProperty#OtherNamespace\AnnotationName"
+     * @param string $hostClassName Host class name
+     * @param string $itemName type and property or method name (c = class, p:<propertyName> = property, m:<methodName> = method)
+     * @param string $annotationClassName Fully qualified annotation class name
      * @return array
      */
-    public function getAttributesRead(string $key): array
+    public function getAttributesRead(string $hostClassName, string $itemName, string $annotationClassName): array
     {
-        return $this->attributes[$key] ?? [];
+        return $this->attributes[$hostClassName][$itemName][$annotationClassName] ?? [];
     }
 
     public function resolveClassAnnotation(\ReflectionClass $reflectionClass, string $name, string $value)
     {
         $this->initialise($reflectionClass);
-        return $this->resolveAnnotation($this->resolvedClassAnnotations, 'c', '', $name, $value);
+        return $this->resolveAnnotation($this->resolvedClassAnnotations, 'c', $name, $value);
     }
 
     public function resolvePropertyAnnotation(\ReflectionClass $reflectionClass, string $propertyName, string $name, string $value)
     {
         $this->initialise($reflectionClass, $reflectionClass->hasProperty($propertyName) ? $reflectionClass->getProperty($propertyName) : null);
-        return $this->resolveAnnotation($this->resolvedPropertyAnnotations, 'p', $propertyName, $name, $value);
+        return $this->resolveAnnotation($this->resolvedPropertyAnnotations, 'p:' . $propertyName, $name, $value);
     }
 
     public function resolveMethodAnnotation(\ReflectionClass $reflectionClass, string $methodName, string $name, string $value)
     {
         $this->initialise($reflectionClass, null, $reflectionClass->hasMethod($methodName) ? $reflectionClass->getMethod($methodName) : null);
-        return $this->resolveAnnotation($this->resolvedMethodAnnotations, 'm', $methodName, $name, $value);
+        return $this->resolveAnnotation($this->resolvedMethodAnnotations, 'm:' . $methodName, $name, $value);
     }
     
     public function convertGenericToClass(AnnotationGeneric $generic, $className)
     {
+        return $this->convertValueToObject(
+            $generic->parentClass->getName(),
+            $generic->getItemName(),
+            $className,
+            $generic->value
+        );
+        
         return $this->convertValueToObject(
             $className,
             $generic->value,
@@ -86,7 +94,7 @@ class AnnotationResolver
        $this->reflectionProperty = $property;
        $this->reflectionMethod = $method;
     }
-    private function resolveAnnotation(array &$resolvedAnnotations, $itemType, $itemName, $name, $value)
+    private function resolveAnnotation(array &$resolvedAnnotations, string $itemName, string $name, $value)
     {
         $class = $this->reflectionClass->getName();
         $annotationClass = $this->aliasFinder->findClassForAlias($this->reflectionClass, $name, false);
@@ -94,9 +102,8 @@ class AnnotationResolver
         $cachedValue = $resolvedAnnotations[$cacheKey][$annotationClass] ?? null;
         if (!$cachedValue || $cachedValue instanceof AnnotationGeneric) { //If generic, there could be multiple - cannot cache by name
             $resolvedAnnotations[$cacheKey] ??= [];
-            $key = $class . '#' . $itemType . ':' . $itemName . '#' . $annotationClass;
             try {
-                $resolved = $this->convertValueToObject($annotationClass, $value, $key);
+                $resolved = $this->convertValueToObject($class, $itemName, $annotationClass, $value);
             } catch (\Exception $ex) {}
             $resolved = $resolved ?? $this->populateGenericAnnotation($name, $value);
             $resolvedAnnotations[$cacheKey][$annotationClass] = $resolved;
@@ -114,22 +121,24 @@ class AnnotationResolver
      * @throws \ReflectionException
      */
     private function convertValueToObject(
-        string $annotation,
-        string $value,
-        string $key
+        string $className,
+        string $itemName,
+        string $annotationClass,
+        string $value
     ): ?object {
-        $this->attributes[$key] = $this->extractPropertyValues($value);
-        $annotationReflectionClass = new \ReflectionClass($annotation);
+        $this->attributes[$className][$itemName][$annotationClass] = $this->extractPropertyValues($value);
+        $attributes =& $this->attributes[$className][$itemName][$annotationClass];
+        $annotationReflectionClass = new \ReflectionClass($annotationClass);
         $constructor = $annotationReflectionClass->getConstructor();
         if ($constructor && $constructor->getNumberOfRequiredParameters() > 0) {
-            $mandatoryArgs = $this->getMandatoryConstructorArgs($annotation, $annotationReflectionClass, $key);
-            $object = new $annotation(...$mandatoryArgs);
+            $mandatoryArgs = $this->getMandatoryConstructorArgs($annotationClass, $annotationReflectionClass, $attributes);
+            $object = new $annotationClass(...$mandatoryArgs);
         } else {
-            $object = new $annotation();
+            $object = new $annotationClass();
         }
 
-        foreach ($this->attributes[$key] as $attributeName => $attributeValue) {
-            $this->setPropertyOnObject($object, $attributeName, $attributeValue, $key);
+        foreach ($attributes as $attributeName => $attributeValue) {
+            $this->setPropertyOnObject($object, $attributeName, $attributeValue, $attributes);
         }
 
         return $object;
@@ -166,12 +175,12 @@ class AnnotationResolver
     private function getMandatoryConstructorArgs(
         string $annotation,
         \ReflectionClass $annotationReflectionClass, 
-        string $key
+        array $attributes
     ): array {
         $mandatoryArgs = [];
         foreach ($annotationReflectionClass->getConstructor()->getParameters() as $constructorArg) {
             if (!$constructorArg->isOptional()) {
-                if (!array_key_exists($constructorArg->getName(), $this->attributes[$key])) {
+                if (!array_key_exists($constructorArg->getName(), $attributes)) {
                     //We cannot create it!
                     $errorMessage = sprintf(
                         'Cannot create instance of annotation %1$s (defined on %2$s) because constructor argument %3$s is mandatory and has not been supplied (or the annotation is malformed so could not be parsed).',
@@ -181,7 +190,7 @@ class AnnotationResolver
                     );
                     throw new AnnotationReaderException($errorMessage);
                 }
-                $mandatoryArgs[] = $this->attributes[$key][$constructorArg->getName()];
+                $mandatoryArgs[] = $attributes[$constructorArg->getName()];
             }
         }
 
@@ -241,7 +250,7 @@ class AnnotationResolver
     /**
      * Populate the properties of an object that represents an annotation.
      */
-    private function setPropertyOnObject(object $object, string $property, $propertyValue, string $key): void
+    private function setPropertyOnObject(object $object, string $property, $propertyValue, array $attributes): void
     {
         try {
             if (property_exists($object, $property)) {
@@ -259,7 +268,7 @@ class AnnotationResolver
                         $object->{$setter}($propertyValue);
                     }
                 }
-                $this->attributes[$key][$property] = $propertyValue;
+                $attributes[$property] = $propertyValue;
             }
         } catch (\Exception $ex) {}
     }

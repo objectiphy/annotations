@@ -20,11 +20,11 @@ class AnnotationGenericTest extends TestCase
         array $expectedParts
     ) {
         $aliasFinder = new ClassAliasFinder();
-        $closure = function($alias) use ($aliasFinder) {
-            $reflectionClass = new \ReflectionClass(TestEntity::class);
+        $reflectionClass = new \ReflectionClass(TestEntity::class);
+        $closure = function($alias) use ($reflectionClass, $aliasFinder) {
             return $aliasFinder->findClassForAlias($reflectionClass, $alias, false);
         };
-        $generic = new AnnotationGeneric($annotationName, $annotationValue, $closure);
+        $generic = new AnnotationGeneric($annotationName, $annotationValue, $closure, $reflectionClass);
         foreach ($expectedParts as $key => $value) {
             $this->assertSame($value, $generic->$key);
         }
