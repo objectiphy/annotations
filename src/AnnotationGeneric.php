@@ -124,7 +124,7 @@ class AnnotationGeneric
     }
 
     /**
-     * Break down the annotation string into its constituent parts.
+     * Break down the annotation string into its constituent parts (which are assigned to properties of this class).
      * @param string $value
      */
     private function parseValue(string $value): void
@@ -181,7 +181,7 @@ class AnnotationGeneric
      * @return string Item name that is used as a key to cache resolved annotations. For class annotations, this will
      * be an empty string. For property annotations, it will be p:<propertyName> and for methods m:<methodName>.
      */
-    public function getItemName()
+    public function getItemName(): string
     {
         $itemName = '';
         if ($this->parentProperty) {

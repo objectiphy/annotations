@@ -4,23 +4,40 @@ declare(strict_types=1);
 
 namespace Objectiphy\Annotations;
 
+/**
+ * Extracts annotations from doc comments as a simple key/value pair
+ * (key = annotation name, value = annotation as a string)
+ * @package Objectiphy\Annotations
+ * @author Russell Walker <rwalker.php@gmail.com>
+ */
 class DocParser
 {
+    //Local cache
     private array $classAnnotations;
     private array $propertyAnnotations;
     private array $methodAnnotations;
-    
-    public function getClassAnnotations(\ReflectionClass $reflectionClass)
+
+    /**
+     * Parse doc comment for class annotations
+     * @param \ReflectionClass $reflectionClass
+     * @return array Array of annotation strings, keyed by annotation name.
+     */
+    public function getClassAnnotations(\ReflectionClass $reflectionClass): array
     {
         $class = $reflectionClass->getName();
         if (empty($this->classAnnotations[$class])) {
             $this->classAnnotations[$class] = $this->parseDocComment($reflectionClass->getDocComment());
         }
         
-        return $this->classAnnotations[$class];
+        return $this->classAnnotations[$class] ?? [];
     }
 
-    public function getPropertyAnnotations(\ReflectionClass $reflectionClass)
+    /**
+     * Parse doc comments for all property annotations, keyed by property name
+     * @param \ReflectionClass $reflectionClass
+     * @return array Array of annotation strings, keyed by property name, then annotation name.
+     */
+    public function getPropertyAnnotations(\ReflectionClass $reflectionClass): array
     {
         $class = $reflectionClass->getName();
         if (empty($this->propertyAnnotations[$class])) {
@@ -34,7 +51,12 @@ class DocParser
         return $this->propertyAnnotations[$class];
     }
 
-    public function getMethodAnnotations(\ReflectionClass $reflectionClass)
+    /**
+     * Parse doc comments for all method annotations, keyed by method name
+     * @param \ReflectionClass $reflectionClass
+     * @return array Array of annotation strings, keyed by method name, then annotation name.
+     */
+    public function getMethodAnnotations(\ReflectionClass $reflectionClass): array
     {
         $class = $reflectionClass->getName();
         if (empty($this->methodAnnotations[$class])) {
@@ -48,7 +70,12 @@ class DocParser
         return $this->methodAnnotations[$class];
     }
 
-    private function parseDocComment(string $docComment)
+    /**
+     * Compile list of annotations for the given doc comment, keyed by annotation name.
+     * @param string $docComment
+     * @return array
+     */
+    private function parseDocComment(string $docComment): array
     {
         $annotations = [];
         foreach ($this->getAnnotationList($docComment) ?? [] as $index => $annotationKvp) {

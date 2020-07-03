@@ -11,6 +11,7 @@ use Objectiphy\Annotations\AnnotationReaderInterface;
 use Objectiphy\Annotations\CachedAnnotationReader;
 use Objectiphy\Annotations\PsrSimpleCacheInterface;
 use Objectiphy\Annotations\Tests\Annotations\Column;
+use Objectiphy\Annotations\Tests\Entity\AnotherTestEntity;
 use Objectiphy\Annotations\Tests\Entity\TestEntity;
 use Objectiphy\Annotations\Tests\Annotations\Relationship;
 use Objectiphy\Annotations\Tests\Annotations\Table;
@@ -23,7 +24,7 @@ class AnnotationReaderTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->object = new AnnotationReader(null, null, ['childClassName', 'targetEntity']);
+        $this->object = new AnnotationReader(['childClassName', 'targetEntity']);
     }
 
     public function testGetAnnotationFromClass()
@@ -155,5 +156,21 @@ class AnnotationReaderTest extends TestCase
         $this->assertSame('some\ns\ClassB', $annotations[1]->type);
         $this->assertSame('$cb', $annotations[1]->variable);
         $this->assertSame('With a comment', $annotations[1]->comment);
+    }
+
+    public function testMultipleCustomMethodAnnotations()
+    {
+        $reflectionMethod = new \ReflectionMethod(AnotherTestEntity::class, 'methodWithMultipleCustomAnnotations');
+        $relationships = $this->object->getMethodAnnotation($reflectionMethod, Relationship::class);
+        $this->assertSame(3, count($relationships));
+        $this->assertInstanceOf(Relationship::class, $relationships[0]);
+        $this->assertSame('one_to_many', $relationships[0]->relationshipType);
+        $this->assertSame('join_col', $relationships[0]->joinColumn);
+        $this->assertInstanceOf(Relationship::class, $relationships[1]);
+        $this->assertSame('many_to_many', $relationships[1]->relationshipType);
+        $this->assertSame('nonsense', $relationships[1]->joinColumn);
+        $this->assertInstanceOf(Relationship::class, $relationships[2]);
+        $this->assertSame('many_to_one', $relationships[2]->relationshipType);
+        $this->assertSame('wth', $relationships[2]->joinColumn);
     }
 }

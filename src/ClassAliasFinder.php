@@ -92,7 +92,10 @@ class ClassAliasFinder
                         $usedNamespaces = array_merge($usedNamespaces, [$this->namespace => '']);
                         break;
                     case T_USE:
-                        $usedNamespaces = array_merge($usedNamespaces, $this->getUseStatements($tokens, $i, $reflectionClass->getFileName()));
+                        $usedNamespaces = array_merge(
+                            $usedNamespaces, 
+                            $this->getUseStatements($tokens, $i, $reflectionClass->getFileName())
+                        );
                         break;
                 }
             }
@@ -161,7 +164,8 @@ class ClassAliasFinder
             } elseif ($tokens[$i] == '}') {
                 //End of a bunch of use statements which all have the same prefix
                 if (!$prefix) {
-                    throw new AnnotationReaderException(sprintf('Unexpected closing brace } on line %1$d of %2$s', $tokens[$i][2], $fileName));
+                    $errorMessage = sprintf('Unexpected closing brace } on line %1$d of %2$s', $tokens[$i][2], $fileName);
+                    throw new AnnotationReaderException($errorMessage);
                 }
                 $prefix = '';
                 $this->finaliseUseStatement($alias, $useStatement, $useStatements, $prefix);

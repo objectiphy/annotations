@@ -20,24 +20,25 @@ class AnnotationReader implements AnnotationReaderInterface
     private DocParser $docParser;
     private AnnotationResolver $resolver;
 
+    //Local cache
     private array $resolvedClassAnnotations = [];
     private array $resolvedPropertyAnnotations = [];
     private array $resolvedMethodAnnotations = [];
 
     /**
-     * @param DocParser $docParser
-     * @param AnnotationResolver $resolver
      * @param array $classNameAttributes If any attributes of the annotation need to be resolved to fully qualified
      * class names, specify the attribute names here.
      * @param bool $throwExceptions For silent operation, set to false, and any errors will be ignored, and annotations
      * that could not be parsed will be returned as null. Either way, the lastErrorMessage property will be populated
      * with any exception messages.
+     * @param DocParser $docParser
+     * @param AnnotationResolver $resolver
      */
     public function __construct(
-        DocParser $docParser = null,
-        AnnotationResolver $resolver = null,
         array $classNameAttributes = [],
-        $throwExceptions = true
+        $throwExceptions = true,
+        DocParser $docParser = null,
+        AnnotationResolver $resolver = null
     ) {
         $this->setThrowExceptions($throwExceptions);
         $this->docParser = $docParser ?? new DocParser();
@@ -46,7 +47,7 @@ class AnnotationReader implements AnnotationReaderInterface
     }
 
     /**
-     * Just pass it along
+     * Pass it along and clear the local cache
      * @param array $classNameAttributes
      */
     public function setClassNameAttributes(array $classNameAttributes): void
@@ -67,22 +68,25 @@ class AnnotationReader implements AnnotationReaderInterface
     }
 
     /**
-     * Returns an associative array of the properties that were specified for a custom annotation. We need this because 
+     * Returns an associative array of the attributes that were specified for a custom annotation. We need this because
      * it is impossible to tell otherwise whether a value was present in the annotation, or whether it is just the 
      * default value for the object or was set separately.
-     * @param string $className
-     * @return array
+     * @param string $className Name of class that holds the annotation
+     * @param string $itemName 'p:' followed by property name, 'm:' followed by method name, or 'c' for a class
+     * annotation.
+     * @param string $annotationClassName Name of the custom annotation class whose attributes we want to return.
+     * @return array Associative array of attributes.
      */
-    public function getAttributesRead(string $hostClassName, string $itemName, string $annotationClassName): array
+    public function getAttributesRead(string $className, string $itemName, string $annotationClassName): array
     {
-        return $this->resolver->getAttributesRead($hostClassName, $itemName, $annotationClassName);
+        return $this->resolver->getAttributesRead($className, $itemName, $annotationClassName);
     }
 
     /**
      * @param string $className Name of class that has (or might have) the annotation.
      * @param string $annotationName Name of the annotation.
-     * @return object | array | null If the annotation appears more than once, an array will be returned
-     * @return array | object | null
+     * @return object|array|null If the annotation appears more than once, an array will be returned
+     * @return array|object|null
      * @throws AnnotationReaderException
      * @throws \ReflectionException
      */
@@ -102,7 +106,7 @@ class AnnotationReader implements AnnotationReaderInterface
      * @param string $className Name of class that has the property whose annotation we want.
      * @param string $propertyName Name of property that has (or might have) the annotation.
      * @param string $annotationName Name of the annotation.
-     * @return object | array | null If the annotation appears more than once, an array will be returned
+     * @return object|array|null If the annotation appears more than once, an array will be returned
      * @throws AnnotationReaderException
      * @throws \ReflectionException
      */
@@ -131,7 +135,7 @@ class AnnotationReader implements AnnotationReaderInterface
      * @param string $className Name of class that has the method whose annotation we want.
      * @param string $methodName Name of the method that has (or might have) the annotation.
      * @param string $annotationName Name of the annotation.
-     * @return object | array | null If the annotation appears more than once, an array will be returned
+     * @return object|array|null If the annotation appears more than once, an array will be returned
      * @throws AnnotationReaderException
      * @throws \ReflectionException
      */
@@ -260,29 +264,29 @@ class AnnotationReader implements AnnotationReaderInterface
         }
     }
 
-//    /**
-//     * Given an associative array, which might contain indexed arrays, combine into one indexed array. For example:
-//     * [
-//     *   'param' => [
-//     *     0 => 'value1',
-//     *     1 => 'value2'
-//     *   ],
-//     *   'var' => 'value3',
-//     *   'something_else' => [
-//     *     0 => 'value4'
-//     *   ]
-//     * ]
-//     *
-//     * ...would return:
-//     *
-//     * [
-//     *   0 => 'value1',
-//     *   1 => 'value2',
-//     *   2 => 'value3',
-//     *   3 => 'value4'
-//     * ]
-//     * @param array $array
-//     */
+    /**
+     * Given an associative array, which might contain indexed arrays, combine into one indexed array. For example:
+     * [
+     *   'param' => [
+     *     0 => 'value1',
+     *     1 => 'value2'
+     *   ],
+     *   'var' => 'value3',
+     *   'something_else' => [
+     *     0 => 'value4'
+     *   ]
+     * ]
+     *
+     * ...would return:
+     *
+     * [
+     *   0 => 'value1',
+     *   1 => 'value2',
+     *   2 => 'value3',
+     *   3 => 'value4'
+     * ]
+     * @param array $array
+     */
     private function unifiedArrayValues(array $array): array
     {
         $return = [];
@@ -296,16 +300,18 @@ class AnnotationReader implements AnnotationReaderInterface
 
         return $return;
     }
-//    private function unifiedArrayValues(array $array): array
-//    {
-//        return array_values($array);
-//    }
 
     /******************************************************************************************************************
      * End of Doctrine compatibility methods.
      *****************************************************************************************************************/
 
-    private function setClass(string $className = '', \ReflectionClass $reflectionClass = null)
+    /**
+     * Store the host class name and reflection (can be null)
+     * @param string $className
+     * @param \ReflectionClass|null $reflectionClass
+     * @throws \ReflectionException
+     */
+    private function setClass(string $className = '', ?\ReflectionClass $reflectionClass = null): void
     {
         if (!$reflectionClass && $className) {
             $reflectionClass = new \ReflectionClass($className);
@@ -368,12 +374,21 @@ class AnnotationReader implements AnnotationReaderInterface
         return $this->resolvedMethodAnnotations[$this->class][$methodName];
     }
 
+    /**
+     * @param string $annotationName
+     * @return object|array|null
+     */
     private function resolveClassAnnotation(string $annotationName)
     {
         $resolvedAnnotations = $this->resolveClassAnnotations();
         return $resolvedAnnotations[$annotationName] ?? null;
     }
 
+    /**
+     * @param string $propertyName
+     * @param string $annotationName
+     * @return object|array|null
+     */
     private function resolvePropertyAnnotation(string $propertyName, string $annotationName)
     {
         $this->resolvePropertyAnnotations($propertyName);
@@ -381,6 +396,11 @@ class AnnotationReader implements AnnotationReaderInterface
         return $this->resolvedPropertyAnnotations[$this->class][$propertyName][$annotationName] ?? null;
     }
 
+    /**
+     * @param string $methodName
+     * @param string $annotationName
+     * @return object|array|null
+     */
     private function resolveMethodAnnotation(string $methodName, string $annotationName)
     {
         $this->resolveMethodAnnotations($methodName);
@@ -393,7 +413,7 @@ class AnnotationReader implements AnnotationReaderInterface
      * @param array $resolvedAnnotations
      * @param string $annotationName
      */
-    private function resolveUnqualified(array &$resolvedAnnotations, string $annotationName)
+    private function resolveUnqualified(array &$resolvedAnnotations, string $annotationName): void
     {
         if (!isset($resolvedAnnotations[$annotationName])) {
             $shortClassName = $this->getShortClassName($annotationName);
@@ -405,12 +425,12 @@ class AnnotationReader implements AnnotationReaderInterface
     }
 
     /**
-     * Add alias, full class name, and unqualified class name to the index
+     * Add annotation to index, keyed on resolved class name if possible, otherwise generic annotation name.
      * @param array $index
      * @param string $name
      * @param $resolvedAnnotation
      */
-    private function addResolvedToIndex(array &$index, string $name, $resolvedAnnotation)
+    private function addResolvedToIndex(array &$index, string $name, $resolvedAnnotation): void
     {
         $resolvedAnnotations = is_array($resolvedAnnotation) ? $resolvedAnnotation : [$resolvedAnnotation];
         foreach ($resolvedAnnotations as $annotation) {
@@ -425,7 +445,14 @@ class AnnotationReader implements AnnotationReaderInterface
         }
     }
 
-    private function addToIndex(array &$index, $name, $value)
+    /**
+     * If we already have an item in the index, turn it into an array and add to the array; otherwise, just set the
+     * value directly (we only want to return an array if the same annotation appears more than once on an item).
+     * @param array $index
+     * @param string $name
+     * @param object $value
+     */
+    private function addToIndex(array &$index, string $name, object $value): void
     {
         if (isset($index[$name])) {
             if (!is_array($index[$name])) {
@@ -437,9 +464,14 @@ class AnnotationReader implements AnnotationReaderInterface
         }
     }
 
-    private function getShortClassName(string $fullClassName)
+    /**
+     * Quickly parse a full class name to get the last part (short class name). No need for reflection here.
+     * @param string $fullClassName
+     * @return string Just the class part
+     */
+    private function getShortClassName(string $fullClassName): string
     {
-        return substr(strrchr($fullClassName, '\\'), 1);
+        return substr(strrchr($fullClassName, '\\'), 1) ?? '';
     }
 
     /**
@@ -457,10 +489,11 @@ class AnnotationReader implements AnnotationReaderInterface
     /**
      * Decide whether to throw or return null.
      * @param \Exception $ex
+     * @param bool $returnEmptyArray
      * @return array|null
      * @throws \Exception
      */
-    private function handleException(\Exception $ex, bool $returnEmptyArray = false)
+    private function handleException(\Exception $ex, bool $returnEmptyArray = false): ?array
     {
         $this->lastErrorMessage = $ex->getMessage();
         if ($this->throwExceptions) {

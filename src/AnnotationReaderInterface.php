@@ -21,7 +21,7 @@ interface AnnotationReaderInterface extends AnnotationReaderInterfaceBase
     /**
      * @param string $className Name of class that has (or might have) the annotation.
      * @param string $annotationName Name of the annotation.
-     * @return object | array | null If the annotation appears more than once, an array will be returned
+     * @return object|array|null If the annotation appears more than once, an array will be returned
      * @throws AnnotationReaderException
      * @throws \ReflectionException
      */
@@ -31,7 +31,7 @@ interface AnnotationReaderInterface extends AnnotationReaderInterfaceBase
      * @param string $className Name of class that has the property whose annotation we want.
      * @param string $propertyName Name of property that has (or might have) the annotation.
      * @param string $annotationName Name of the annotation.
-     * @return object | array | null If the annotation appears more than once, an array will be returned
+     * @return object|array|null If the annotation appears more than once, an array will be returned
      * @throws AnnotationReaderException
      * @throws \ReflectionException
      */
@@ -41,7 +41,7 @@ interface AnnotationReaderInterface extends AnnotationReaderInterfaceBase
      * @param string $className Name of class that has the method whose annotation we want.
      * @param string $methodName Name of the method that has (or might have) the annotation.
      * @param string $annotationName Name of the annotation.
-     * @return object | array | null If the annotation appears more than once, an array will be returned
+     * @return object|array|null If the annotation appears more than once, an array will be returned
      * @throws AnnotationReaderException
      * @throws \ReflectionException
      */
