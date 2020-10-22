@@ -136,9 +136,7 @@ class AnnotationGeneric
         if ($startOfVariable !== false) {
             $before = $this->parseBeforeVariable($value);
             $endOfVariable = strpos($value, ' ', $startOfVariable);
-            if ($endOfVariable === false) {
-                $endOfVariable = strlen($value);
-            }
+            $endOfVariable = $endOfVariable === false ? strlen($value) : $endOfVariable;
             $this->variable = substr($value, $startOfVariable, $endOfVariable - $startOfVariable);
             $commentStart = $endOfVariable + 1;
         }

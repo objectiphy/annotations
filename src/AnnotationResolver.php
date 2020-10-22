@@ -73,9 +73,15 @@ class AnnotationResolver
      * @return object|AnnotationGeneric
      * @throws \ReflectionException
      */
-    public function resolvePropertyAnnotation(\ReflectionClass $reflectionClass, string $propertyName, string $name, string $value): object
-    {
-        $reflectionProperty = $reflectionClass->hasProperty($propertyName) ? $reflectionClass->getProperty($propertyName) : null;
+    public function resolvePropertyAnnotation(
+        \ReflectionClass $reflectionClass, 
+        string $propertyName, 
+        string $name, 
+        string $value
+    ): object {
+        $reflectionProperty = $reflectionClass->hasProperty($propertyName) 
+            ? $reflectionClass->getProperty($propertyName) 
+            : null;
         $this->initialise($reflectionClass, $reflectionProperty);
 
         return $this->resolveAnnotation('p:' . $propertyName, $name, $value);
@@ -89,9 +95,15 @@ class AnnotationResolver
      * @return object|AnnotationGeneric
      * @throws \ReflectionException
      */
-    public function resolveMethodAnnotation(\ReflectionClass $reflectionClass, string $methodName, string $name, string $value): object
-    {
-        $reflectionMethod = $reflectionClass->hasMethod($methodName) ? $reflectionClass->getMethod($methodName) : null;
+    public function resolveMethodAnnotation(
+        \ReflectionClass $reflectionClass, 
+        string $methodName, 
+        string $name, 
+        string $value
+    ): object {
+        $reflectionMethod = $reflectionClass->hasMethod($methodName) 
+            ? $reflectionClass->getMethod($methodName) 
+            : null;
         $this->initialise($reflectionClass, null, $reflectionMethod);
 
         return $this->resolveAnnotation('m:' . $methodName, $name, $value);
@@ -122,8 +134,11 @@ class AnnotationResolver
      * @param \ReflectionProperty|null $property
      * @param \ReflectionMethod|null $method
      */
-    protected function initialise(\ReflectionClass $class, ?\ReflectionProperty $property = null, ?\ReflectionMethod $method = null): void
-    {
+    protected function initialise(
+        \ReflectionClass $class, 
+        ?\ReflectionProperty $property = null, 
+        ?\ReflectionMethod $method = null
+    ): void {
        $this->reflectionClass = $class;
        $this->reflectionProperty = $property;
        $this->reflectionMethod = $method;

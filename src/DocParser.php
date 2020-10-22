@@ -26,7 +26,8 @@ class DocParser
     {
         $class = $reflectionClass->getName();
         if (empty($this->classAnnotations[$class])) {
-            $this->classAnnotations[$class] = $this->parseDocComment($reflectionClass->getDocComment());
+            $docComment = $reflectionClass->getDocComment() ?: '';
+            $this->classAnnotations[$class] = $this->parseDocComment($docComment);
         }
         
         return $this->classAnnotations[$class] ?? [];
@@ -43,8 +44,10 @@ class DocParser
         if (empty($this->propertyAnnotations[$class])) {
             $this->propertyAnnotations[$class] = [];
             foreach ($reflectionClass->getProperties() as $reflectionProperty) {
-                $docComment = $reflectionProperty->getDocComment();
-                $this->propertyAnnotations[$class][$reflectionProperty->getName()] = $this->parseDocComment($docComment);
+                $docComment = $reflectionProperty->getDocComment() ?: '';
+                $property = $reflectionProperty->getName();
+                $parsedComment = $this->parseDocComment($docComment);
+                $this->propertyAnnotations[$class][$property] = $parsedComment;
             }
         }
         
@@ -62,8 +65,10 @@ class DocParser
         if (empty($this->methodAnnotations[$class])) {
             $this->methodAnnotations[$class] = [];
             foreach ($reflectionClass->getMethods() as $reflectionMethod) {
-                $docComment = $reflectionMethod->getDocComment();
-                $this->methodAnnotations[$class][$reflectionMethod->getName()] = $this->parseDocComment($docComment);
+                $docComment = $reflectionMethod->getDocComment() ?: '';
+                $method = $reflectionMethod->getName();
+                $parsedComment = $this->parseDocComment($docComment);
+                $this->methodAnnotations[$class][$method] = $parsedComment;
             }
         }
 
@@ -78,7 +83,8 @@ class DocParser
     private function parseDocComment(string $docComment): array
     {
         $annotations = [];
-        foreach ($this->getAnnotationList($docComment) ?? [] as $index => $annotationKvp) {
+        $annotationList = $this->getAnnotationList($docComment) ?? [];
+        foreach ($annotationList as $index => $annotationKvp) {
             $annotationName = $annotationKvp[0];
             $annotationValue = trim($annotationKvp[1]);
             $annotations[] = [$annotationName => $annotationValue];
