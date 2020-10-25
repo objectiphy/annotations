@@ -273,8 +273,8 @@ class AnnotationResolver
         $attrEnd = 0;
         foreach (str_split($value) as $i => $char) {
             switch ($char) {
-                case '(';
-                case ',';
+                case '(':
+                case ',':
                     $attrStart = $i + 1; //We will trim any whitespace later
                     break;
                 case '=':
@@ -295,9 +295,14 @@ class AnnotationResolver
         }
 
         //Try to make it valid JSON
+//        $jsonString = str_replace(
+//            ['{', '}', '(', ')', '=', '\\', "\t", "\r", "\n"],
+//            ['[', ']', '{', '}', ':', '\\\\', '', '', ''],
+//            $value
+//        );
         $jsonString = str_replace(
-            ['{', '}', '(', ')', '=', '\\', "\t", "\r", "\n"],
-            ['[', ']', '{', '}', ':', '\\\\', '', '', ''],
+            ['(', ')', '=', '\\', "\t", "\r", "\n"],
+            ['{', '}', ':', '\\\\', '', '', ''],
             $value
         );
         $array = json_decode($jsonString, true, 512, \JSON_INVALID_UTF8_IGNORE | \JSON_BIGINT_AS_STRING);
@@ -305,6 +310,12 @@ class AnnotationResolver
             //Now trim any whitespace from keys (values should be ok)
             $trimmedKeys = array_map('trim', array_keys($array));
             $cleanArray = array_combine($trimmedKeys, array_values($array));
+            foreach ($cleanArray as $cleanKey => $cleanValue) { //and the next level (not worth going any further though)
+                if (is_array($cleanValue)) {
+                    $trimmedCleanKeys = array_map('trim', array_keys($cleanValue));
+                    $cleanArray[$cleanKey] = array_combine($trimmedCleanKeys, array_values($cleanValue));
+                }
+            }
         }
 
         return $cleanArray ?? [];
