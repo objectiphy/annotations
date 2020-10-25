@@ -295,11 +295,6 @@ class AnnotationResolver
         }
 
         //Try to make it valid JSON
-//        $jsonString = str_replace(
-//            ['{', '}', '(', ')', '=', '\\', "\t", "\r", "\n"],
-//            ['[', ']', '{', '}', ':', '\\\\', '', '', ''],
-//            $value
-//        );
         $jsonString = str_replace(
             ['(', ')', '=', '\\', "\t", "\r", "\n"],
             ['{', '}', ':', '\\\\', '', '', ''],
