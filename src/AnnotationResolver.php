@@ -5,12 +5,13 @@ declare(strict_types=1);
 namespace Objectiphy\Annotations;
 
 /**
- * Resolve annotation string values into objects
- * @package Objectiphy\Annotations
  * @author Russell Walker <rwalker.php@gmail.com>
+ * Resolve annotation string values into objects
  */
 class AnnotationResolver
 {
+    public string $lastErrorMessage = '';
+    
     private ClassAliasFinder $aliasFinder;
     private array $classNameAttributes;
     private array $attributes;
@@ -152,8 +153,7 @@ class AnnotationResolver
      * @param $value String value of annotation.
      * @return object|AnnotationGeneric Either an instance of a custom annotation class, or AnnotationGeneric if no
      * custom class recognised. Custom class annotations can be cached by class name, as they would typically only
-     * appear once per item. //TODO: Maybe we should not cache at all here - they are cached further up the chain, and
-     * by not caching, we would allow for multiple instances of the same custom annotation on an item.
+     * appear once per item.
      */
     private function resolveAnnotation(string $itemName, string $name, string $value): object
     {
@@ -161,13 +161,20 @@ class AnnotationResolver
         $annotationClass = $this->aliasFinder->findClassForAlias($this->reflectionClass, $name, false);
         try {
             $resolved = $this->convertValueToObject($class, $itemName, $annotationClass, $value);
-        } catch (\Exception $ex) {}
-
-        return $resolved ?? $this->populateGenericAnnotation($name, $value);
+        } catch (\Exception $ex) {
+            $args = [$annotationClass, $class, $ex->getMessage()];
+            $this->lastErrorMessage = sprintf('Error parsing annotation \'%1$s\' on \'%2$s\' - %3$s', ...$args);
+        } finally {
+            return $resolved ?? $this->populateGenericAnnotation($name, $value);
+        }
     }
 
     /**
      * Convert annotation string value into an object.
+     * @param string $className
+     * @param string $itemName
+     * @param string $annotationClass
+     * @param string $value
      * @return object
      * @throws AnnotationReaderException
      * @throws \ReflectionException
@@ -178,33 +185,39 @@ class AnnotationResolver
         string $annotationClass,
         string $value
     ): ?object {
-        //Extract attribute values
-        $this->attributes[$className][$itemName][$annotationClass] = $this->extractPropertyValues($value);
-        $attributes =& $this->attributes[$className][$itemName][$annotationClass];
+        if (class_exists($annotationClass)) {
+            //Extract attribute values
+            $this->attributes[$className][$itemName][$annotationClass] = $this->extractPropertyValues($value);
+            $attributes =& $this->attributes[$className][$itemName][$annotationClass];
 
-        //Instantiate
-        $annotationReflectionClass = new \ReflectionClass($annotationClass);
-        $constructor = $annotationReflectionClass->getConstructor();
-        if ($constructor && $constructor->getNumberOfRequiredParameters() > 0) {
-            $mandatoryArgs = $this->getMandatoryConstructorArgs($annotationClass, $annotationReflectionClass, $attributes);
-            $object = new $annotationClass(...$mandatoryArgs);
-        } else {
-            $object = new $annotationClass();
+            //Instantiate
+            $annotationReflectionClass = new \ReflectionClass($annotationClass);
+            $constructor = $annotationReflectionClass->getConstructor();
+            if ($constructor && $constructor->getNumberOfRequiredParameters() > 0) {
+                $mandatoryArgs = $this->getMandatoryConstructorArgs(
+                    $annotationClass,
+                    $annotationReflectionClass,
+                    $attributes
+                );
+                $object = new $annotationClass(...$mandatoryArgs);
+            } else {
+                $object = new $annotationClass();
+            }
+
+            //Set properties
+            foreach ($attributes as $attributeName => $attributeValue) {
+                $this->setPropertyOnObject($object, $attributeName, $attributeValue, $attributes);
+            }
+
+            return $object;
         }
-
-        //Set properties
-        foreach ($attributes as $attributeName => $attributeValue) {
-            $this->setPropertyOnObject($object, $attributeName, $attributeValue, $attributes);
-        }
-
-        return $object;
     }
 
     /**
      * Create and populate the AnnotationGeneric object to represent the annotation.
      * @param string $annotationName
      * @param string $annotationValue
-     * @param string $commentKey
+     * @return AnnotationGeneric
      */
     private function populateGenericAnnotation(
         string $annotationName,
@@ -214,7 +227,7 @@ class AnnotationResolver
         $aliasFinder = function($alias) {
             return $this->aliasFinder->findClassForAlias($this->reflectionClass, $alias, false);
         };
-        $generic = new AnnotationGeneric(
+        return new AnnotationGeneric(
             $annotationName,
             $annotationValue,
             $aliasFinder,
@@ -222,8 +235,6 @@ class AnnotationResolver
             $this->reflectionProperty,
             $this->reflectionMethod
         );
-
-        return $generic;
     }
 
     /**
@@ -231,7 +242,7 @@ class AnnotationResolver
      * can then be populated based on values in the annotation).
      * @param string $annotation
      * @param \ReflectionClass $annotationReflectionClass
-     * @param array $properties
+     * @param array $attributes
      * @return array
      * @throws AnnotationReaderException
      */
@@ -264,6 +275,7 @@ class AnnotationResolver
      * Takes the content of an annotation value and converts to an associative array.
      * @param string $value Annotation value, eg: (attr1="value1", attr2={"value2", 3}).
      * @return array eg. ['attr1' => 'value1', 'attr2' => ['value2', 3]].
+     * @throws AnnotationReaderException
      */
     private function extractPropertyValues(string $value): array
     {
@@ -271,45 +283,66 @@ class AnnotationResolver
         $attrPositions = [];
         $attrStart = 0;
         $attrEnd = 0;
+        $previousNonSpace = '';
+        $nextNonSpace = '';
         foreach (str_split($value) as $i => $char) {
             switch ($char) {
                 case '(':
                 case ',':
-                    $attrStart = $i + 1; //We will trim any whitespace later
+                    for ($j = $i; $j <= strlen($value); $j++) {
+                        $j++;
+                        $nextChar = substr($value, $j, 1);
+                        if (!ctype_space($nextChar)) {
+                            $nextNonSpace = $nextChar;
+                            break;
+                        }
+                    }
+                    if ($nextNonSpace != '"') { //Already wrapped in quotes, don't do it again
+                        $attrStart = $i + 1; //We will trim any whitespace later
+                    }
                     break;
                 case '=':
                     if ($attrStart) {
-                        $attrEnd = $i - 1;
-                        $attrPositions[] = $attrStart;
-                        $attrPositions[] = $attrEnd + 1;
-                        $attrStart = 0;
-                        $attrEnd = 0;
+                        if ($previousNonSpace != '"') { //Already wrapped in quotes, don't do it again
+                            $attrEnd = $i - 1;
+                            $attrPositions[] = $attrStart;
+                            $attrPositions[] = $attrEnd + 1;
+                            $attrStart = 0;
+                            $attrEnd = 0;
+                        }
                     }
                     break;
             }
+            //$previousNonSpace = ctype_space($char) ? $previousNonSpace : $char;
         }
 
         //Wrap all the keys in quotes
         foreach ($attrPositions as $index => $position) {
-            $value = substr($value, 0, $position + $index) . '"' . substr($value, $position + $index);
+            if (substr($value, $position + $index, 1) != '"') {
+                $value = substr($value, 0, $position + $index) . '"' . substr($value, $position + $index);
+            }
         }
 
-        //Try to make it valid JSON
-        $jsonString = str_replace(
-            ['(', ')', '=', '\\', "\t", "\r", "\n"],
-            ['{', '}', ':', '\\\\', '', '', ''],
-            $value
-        );
-        $array = json_decode($jsonString, true, 512, \JSON_INVALID_UTF8_IGNORE | \JSON_BIGINT_AS_STRING);
-        if ($array) {
-            //Now trim any whitespace from keys (values should be ok)
-            $trimmedKeys = array_map('trim', array_keys($array));
-            $cleanArray = array_combine($trimmedKeys, array_values($array));
-            foreach ($cleanArray as $cleanKey => $cleanValue) { //and the next level (not worth going any further though)
-                if (is_array($cleanValue)) {
-                    $trimmedCleanKeys = array_map('trim', array_keys($cleanValue));
-                    $cleanArray[$cleanKey] = array_combine($trimmedCleanKeys, array_values($cleanValue));
+        if ($value) {
+            //Try to make it valid JSON
+            $jsonString = str_replace(
+                ['(', ')', '=', '\\', "\t", "\r", "\n"],
+                ['{', '}', ':', '\\\\', '', '', ''],
+                $value
+            );
+            $array = json_decode($jsonString, true, 512, \JSON_INVALID_UTF8_IGNORE | \JSON_BIGINT_AS_STRING);
+            if ($array) {
+                //Now trim any whitespace from keys (values should be ok)
+                $trimmedKeys = array_map('trim', array_keys($array));
+                $cleanArray = array_combine($trimmedKeys, array_values($array));
+                foreach ($cleanArray as $cleanKey => $cleanValue) { //and the next level (not worth going any further though)
+                    if (is_array($cleanValue)) {
+                        $trimmedCleanKeys = array_map('trim', array_keys($cleanValue));
+                        $cleanArray[$cleanKey] = array_combine($trimmedCleanKeys, array_values($cleanValue));
+                    }
                 }
+            } elseif (json_last_error() != \JSON_ERROR_NONE) {
+                throw new AnnotationReaderException('Could not resolve annotation: ' . json_last_error_msg());
             }
         }
 
@@ -318,6 +351,10 @@ class AnnotationResolver
 
     /**
      * Populate the properties of an object that represents an annotation.
+     * @param object $object
+     * @param string $property
+     * @param $propertyValue
+     * @param array $attributes
      */
     private function setPropertyOnObject(object $object, string $property, $propertyValue, array &$attributes): void
     {

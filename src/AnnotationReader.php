@@ -5,15 +5,16 @@ declare(strict_types=1);
 namespace Objectiphy\Annotations;
 
 /**
- * Entry point to allow reading of annotations on classes, properties, and methods.
- * @package Objectiphy\Annotations
  * @author Russell Walker <rwalker.php@gmail.com>
+ * Entry point to allow reading of annotations on classes, properties, and methods.
  */
 class AnnotationReader implements AnnotationReaderInterface
 {
-    /** @var string In case we are in silent mode, any error messages will be reported here. */
+    /**
+     * @var string In case we are in silent mode, any error messages will be reported here.
+     */
     public string $lastErrorMessage = '';
-    private bool $throwExceptions;
+    protected bool $throwExceptions = true;
 
     private ?\ReflectionClass $reflectionClass = null;
     private string $class = ''; //Just makes code more concise instead of grabbing from $reflectionClass all the time
@@ -31,14 +32,14 @@ class AnnotationReader implements AnnotationReaderInterface
      * @param bool $throwExceptions For silent operation, set to false, and any errors will be ignored, and annotations
      * that could not be parsed will be returned as null. Either way, the lastErrorMessage property will be populated
      * with any exception messages.
-     * @param DocParser $docParser
-     * @param AnnotationResolver $resolver
+     * @param DocParser|null $docParser
+     * @param AnnotationResolver|null $resolver
      */
     public function __construct(
         array $classNameAttributes = [],
         $throwExceptions = true,
-        DocParser $docParser = null,
-        AnnotationResolver $resolver = null
+        ?DocParser $docParser = null,
+        ?AnnotationResolver $resolver = null
     ) {
         $this->setThrowExceptions($throwExceptions);
         $this->docParser = $docParser ?? new DocParser();
@@ -87,8 +88,7 @@ class AnnotationReader implements AnnotationReaderInterface
      * @param string $annotationName Name of the annotation.
      * @return object|array|null If the annotation appears more than once, an array will be returned
      * @return array|object|null
-     * @throws AnnotationReaderException
-     * @throws \ReflectionException
+     * @throws \Exception
      */
     public function getAnnotationFromClass(string $className, string $annotationName)
     {
@@ -107,8 +107,7 @@ class AnnotationReader implements AnnotationReaderInterface
      * @param string $propertyName Name of property that has (or might have) the annotation.
      * @param string $annotationName Name of the annotation.
      * @return object|array|null If the annotation appears more than once, an array will be returned
-     * @throws AnnotationReaderException
-     * @throws \ReflectionException
+     * @throws \Exception
      */
     public function getAnnotationFromProperty(string $className, string $propertyName, string $annotationName)
     {
@@ -137,8 +136,7 @@ class AnnotationReader implements AnnotationReaderInterface
      * @param string $methodName Name of the method that has (or might have) the annotation.
      * @param string $annotationName Name of the annotation.
      * @return object|array|null If the annotation appears more than once, an array will be returned
-     * @throws AnnotationReaderException
-     * @throws \ReflectionException
+     * @throws \Exception
      */
     public function getAnnotationFromMethod(string $className, string $methodName, string $annotationName)
     {
@@ -164,7 +162,7 @@ class AnnotationReader implements AnnotationReaderInterface
 
     /******************************************************************************************************************
      * The following public methods are here for compatibility with the Doctrine Reader interface. If you need to pass
-     * a Doctrine Reader to some other service, you can use an instance of this class insetad of the Doctrine reader 
+     * a Doctrine Reader to some other service, you can use an instance of this class instead of the Doctrine reader
      * (just seemed like a cool thing to support, probably useless in real life though!). These methods are also called
      * internally from the other public methods to keep things DRY.
      *****************************************************************************************************************/
@@ -242,6 +240,7 @@ class AnnotationReader implements AnnotationReaderInterface
      * For Doctrine compatibility.
      * @param \ReflectionProperty $property
      * @return array Indexed array.
+     * @throws \Exception
      */
     public function getPropertyAnnotations(\ReflectionProperty $property)
     {
@@ -259,6 +258,7 @@ class AnnotationReader implements AnnotationReaderInterface
      * For Doctrine compatibility.
      * @param \ReflectionMethod $method
      * @return array Indexed array.
+     * @throws \Exception
      */
     public function getMethodAnnotations(\ReflectionMethod $method)
     {
@@ -294,6 +294,7 @@ class AnnotationReader implements AnnotationReaderInterface
      *   3 => 'value4'
      * ]
      * @param array $array
+     * @return array
      */
     private function unifiedArrayValues(array $array): array
     {
@@ -339,6 +340,11 @@ class AnnotationReader implements AnnotationReaderInterface
             foreach ($annotations ?? [] as $index => $nameValuePair) {
                 foreach ($nameValuePair as $name => $value) {
                     $resolved = $this->resolver->resolveClassAnnotation($this->reflectionClass, $name, $value);
+                    if ($this->resolver->lastErrorMessage && $this->throwExceptions) {
+                        throw new AnnotationReaderException($this->resolver->lastErrorMessage);
+                    } else {
+                        $this->lastErrorMessage = $this->lastErrorMessage ?: $this->resolver->lastErrorMessage;
+                    }
                     $this->addResolvedToIndex($this->resolvedClassAnnotations[$this->class], $name, $resolved);
                 }
             }
@@ -347,6 +353,12 @@ class AnnotationReader implements AnnotationReaderInterface
         return $this->resolvedClassAnnotations[$this->class];
     }
 
+    /**
+     * @param string $propertyName
+     * @return array
+     * @throws AnnotationReaderException
+     * @throws \ReflectionException
+     */
     private function resolvePropertyAnnotations(string $propertyName): array
     {
         if (empty($this->resolvedPropertyAnnotations[$this->class][$propertyName])) {
@@ -361,6 +373,11 @@ class AnnotationReader implements AnnotationReaderInterface
                             $name, 
                             $value
                         );
+                        if ($this->resolver->lastErrorMessage && $this->throwExceptions) {
+                            throw new AnnotationReaderException($this->resolver->lastErrorMessage);
+                        } else {
+                            $this->lastErrorMessage = $this->lastErrorMessage ?: $this->resolver->lastErrorMessage;
+                        }
                         $this->addResolvedToIndex(
                             $this->resolvedPropertyAnnotations[$this->class][$propertyName], 
                             $name, 
@@ -374,6 +391,12 @@ class AnnotationReader implements AnnotationReaderInterface
         return $this->resolvedPropertyAnnotations[$this->class][$propertyName];
     }
 
+    /**
+     * @param string $methodName
+     * @return array
+     * @throws AnnotationReaderException
+     * @throws \ReflectionException
+     */
     private function resolveMethodAnnotations(string $methodName): array
     {
         if (empty($this->resolvedMethodAnnotations[$this->class][$methodName])) {
@@ -388,6 +411,11 @@ class AnnotationReader implements AnnotationReaderInterface
                             $name, 
                             $value
                         );
+                        if ($this->resolver->lastErrorMessage && $this->throwExceptions) {
+                            throw new AnnotationReaderException($this->resolver->lastErrorMessage);
+                        } else {
+                            $this->lastErrorMessage = $this->lastErrorMessage ?: $this->resolver->lastErrorMessage;
+                        }
                         $this->addResolvedToIndex(
                             $this->resolvedMethodAnnotations[$this->class][$methodName], 
                             $name, 
@@ -403,6 +431,7 @@ class AnnotationReader implements AnnotationReaderInterface
     /**
      * @param string $annotationName
      * @return object|array|null
+     * @throws AnnotationReaderException
      */
     private function resolveClassAnnotation(string $annotationName)
     {
@@ -414,6 +443,8 @@ class AnnotationReader implements AnnotationReaderInterface
      * @param string $propertyName
      * @param string $annotationName
      * @return object|array|null
+     * @throws AnnotationReaderException
+     * @throws \ReflectionException
      */
     private function resolvePropertyAnnotation(string $propertyName, string $annotationName)
     {
@@ -430,6 +461,8 @@ class AnnotationReader implements AnnotationReaderInterface
      * @param string $methodName
      * @param string $annotationName
      * @return object|array|null
+     * @throws AnnotationReaderException
+     * @throws \ReflectionException
      */
     private function resolveMethodAnnotation(string $methodName, string $annotationName)
     {
@@ -445,6 +478,8 @@ class AnnotationReader implements AnnotationReaderInterface
      * If you use unqualified annotations, it will slow things down, but can still be supported.
      * @param array $resolvedAnnotations
      * @param string $annotationName
+     * @throws AnnotationReaderException
+     * @throws \ReflectionException
      */
     private function resolveUnqualified(array &$resolvedAnnotations, string $annotationName): void
     {

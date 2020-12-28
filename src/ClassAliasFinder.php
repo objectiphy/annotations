@@ -5,19 +5,19 @@ declare(strict_types=1);
 namespace Objectiphy\Annotations;
 
 /**
- * Translates between fully qualified class names and their aliases by resolving namespaces and use statements.
- * @package Objectiphy\Annotations
  * @author Russell Walker <rwalker.php@gmail.com>
+ * Translates between fully qualified class names and their aliases by resolving namespaces and use statements.
  */
 class ClassAliasFinder
 {
-    private bool $lastTokenWasUse = false;
     private string $namespace = '';
 
     /**
      * Find all aliases for the given class name in the definition of the supplied reflection class.
      * @param \ReflectionClass $reflectionClass Class that contains the code we want to parse.
      * @param string $className Class name we are looking for in the code.
+     * @return array
+     * @throws AnnotationReaderException
      */
     public function findAliasesForClass(\ReflectionClass $reflectionClass, string $className): array
     {
@@ -41,6 +41,8 @@ class ClassAliasFinder
      * @param string $alias
      * @param bool $emptyOnFailure
      * @param bool $checkExists
+     * @return string
+     * @throws AnnotationReaderException
      */
     public function findClassForAlias(
         \ReflectionClass $reflectionClass, 
@@ -213,12 +215,13 @@ class ClassAliasFinder
 
     /**
      * Get the PHP code that appears before the class declaration starts (ie. namespace and use statements). We will
-     * assume that the class starts on the first line that starts with the word 'class' (or the words 'abstract class' 
-     * or 'final class'). While technically it is possible for a line to start with the word class inside a comment 
-     * before the class declaration, this would still typically be after the namespace and use statements anyway. We 
-     * will also assume a single class per file. If the whitespace between the word 'abstract' or 'final' and the word 
+     * assume that the class starts on the first line that starts with the word 'class' (or the words 'abstract class'
+     * or 'final class'). While technically it is possible for a line to start with the word class inside a comment
+     * before the class declaration, this would still typically be after the namespace and use statements anyway. We
+     * will also assume a single class per file. If the whitespace between the word 'abstract' or 'final' and the word
      * 'class' is  not a single space, it won't be found - that's ok, we'll just return the whole file contents.
      * @param \ReflectionClass $reflectionClass
+     * @return string
      */
     private function getPreClassContent(\ReflectionClass $reflectionClass): string
     {

@@ -10,13 +10,13 @@ if (!interface_exists('\Psr\SimpleCache\CacheInterface')) {
 }
 
 /**
- * Cache decorator for the annotation reader. We intercept requests for annotations and try to get them from the cache 
- * if possible before deferring to the 'real' annotation reader. 
- * @package Objectiphy\Annotations
  * @author Russell Walker <rwalker.php@gmail.com>
+ * Cache decorator for the annotation reader. We intercept requests for annotations and try to get them from the cache 
+ * if possible before deferring to the 'real' annotation reader.
  */
 class CachedAnnotationReader implements AnnotationReaderInterface
 {
+    protected bool $throwExceptions = true;
     private AnnotationReaderInterface $annotationReader;
     private \Psr\SimpleCache\CacheInterface $cache;
     private string $keyPrefix = '';
@@ -26,6 +26,15 @@ class CachedAnnotationReader implements AnnotationReaderInterface
     {
         $this->annotationReader = $annotationReader;
         $this->cache = $cache;
+    }
+
+    /**
+     * If you want to change the behaviour of exception handling after instantiation, you can call this setter.
+     * @param bool $value Whether or not to throw exceptions.
+     */
+    public function setThrowExceptions(bool $value): void
+    {
+        $this->throwExceptions = $value;
     }
     
     /**
@@ -37,6 +46,25 @@ class CachedAnnotationReader implements AnnotationReaderInterface
     {
         $this->annotationReader->setClassNameAttributes($classNameAttributes);
         $this->keyPrefix = substr(sha1(json_encode($classNameAttributes)), 0, 10);
+    }
+
+    /**
+     * Returns an associative array of the attributes that were specified for a custom annotation. We need this because
+     * it is impossible to tell otherwise whether a value was present in the annotation, or whether it is just the
+     * default value for the object or was set separately.
+     * @param string $className Name of class that holds the annotation
+     * @param string $itemName 'p:' followed by property name, 'm:' followed by method name, or 'c' for a class
+     * annotation.
+     * @param string $annotationClassName Name of the custom annotation class whose attributes we want to return.
+     * @return array Associative array of attributes.
+     */
+    public function getAttributesRead(string $className, string $itemName, string $annotationClassName): array
+    {
+        $delegate = function() use ($className, $itemName, $annotationClassName) {
+            return $this->annotationReader->getAttributesRead($className, $itemName, $annotationClassName);
+        };
+
+        return $this->getFromCache($className, 'a#' . $annotationClassName . ':' . $itemName, $delegate);
     }
 
     /**
@@ -58,6 +86,7 @@ class CachedAnnotationReader implements AnnotationReaderInterface
      * @param string $className Name of class that has the property whose annotation we want.
      * @param string $propertyName Name of property that has (or might have) the annotation.
      * @param string $annotationName Name of the annotation.
+     * @return object
      * @throws AnnotationReaderException
      * @throws \ReflectionException
      */
@@ -74,6 +103,7 @@ class CachedAnnotationReader implements AnnotationReaderInterface
      * @param string $className Name of class that has the method whose annotation we want.
      * @param string $methodName Name of the method that has (or might have) the annotation.
      * @param string $annotationName Name of the annotation.
+     * @return object
      * @throws AnnotationReaderException
      * @throws \ReflectionException
      */
@@ -180,6 +210,7 @@ class CachedAnnotationReader implements AnnotationReaderInterface
      * @param string $keyString Unique identifier for the annotation.
      * @param callable $delegate Callable to get the value if not cached.
      * @return mixed
+     * @throws \Psr\SimpleCache\InvalidArgumentException
      */
     private function getFromCache(string $className, string $keyString, callable $delegate)
     {

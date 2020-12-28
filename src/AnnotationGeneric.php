@@ -5,37 +5,56 @@ declare(strict_types=1);
 namespace Objectiphy\Annotations;
 
 /**
+ * @author Russell Walker <rwalker.php@gmail.com>
  * Represents a generic annotation, such as @var, @param (ie. one that is not named after a class).
  * @package Objectiphy\Annotations
- * @author Russell Walker <rwalker.php@gmail.com>
  */
 class AnnotationGeneric
 {
-    /** @var string Annotation name. */
+    /**
+     * @var string Annotation name.
+     */
     public string $name;
 
-    /** @var string Raw annotation value as a string. */
+    /**
+     * @var string Raw annotation value as a string.
+     */
     public string $value;
 
-    /** @var \ReflectionClass Class on which this annotation is defined. */
+    /**
+     * @var \ReflectionClass Class on which this annotation is defined.
+     */
     public \ReflectionClass $parentClass;
     
-    /** @var \ReflectionProperty|null If this is a property annotation, the property it relates to. */
+    /**
+     * @var \ReflectionProperty|null If this is a property annotation, the property it relates to.
+     */
     public ?\ReflectionProperty $parentProperty = null;
     
-    /** @var \ReflectionMethod|null If this is a method annotation, the method it relates to. */
+    /**
+     *
+     * @var \ReflectionMethod|null If this is a method annotation, the method it relates to.
+     */
     public ?\ReflectionMethod $parentMethod = null;
     
-    /** @var array Where more than one word precedes a dollar sign, the words will be stored here. */
+    /**
+     * @var array Where more than one word precedes a dollar sign, the words will be stored here.
+     */
     public array $preVariableParts = [];
 
-    /** @var string A single word either on its own or before a dollar sign will be treated as a data type. */
+    /**
+     * @var string A single word either on its own or before a dollar sign will be treated as a data type.
+     */
     public string $type;
 
-    /** @var string First word to be prefixed with a dollar sign, if any. */
+    /**
+     * @var string First word to be prefixed with a dollar sign, if any.
+     */
     public string $variable;
 
-    /** @var string Remaining text is treated as a comment - any further parsing you'll have to do yourself! */
+    /**
+     * @var string Remaining text is treated as a comment - any further parsing you'll have to do yourself!
+     */
     public string $comment;
 
     /**
@@ -103,12 +122,12 @@ class AnnotationGeneric
      * @param string $value Full raw value of the annotation.
      * @param \closure $aliasFinder Closure that takes a single argument to resolve an alias into a class name.
      * @param \ReflectionClass $reflectionClass Class on which this annotaiton resides.
-     * @param \ReflectionProperty $reflectionProperty If this is a property annotation, the property on which it resides.
-     * @param \ReflectionMethod $reflectionProperty If this is a method annotation, the method on which it resides.
+     * @param \ReflectionProperty|null $reflectionProperty If this is a property annotation, the property on which it resides.
+     * @param \ReflectionMethod|null $reflectionMethod If this is a method annotation, the method on which it resides.
      */
     public function __construct(
         string $name, 
-        string $value = '', 
+        string $value,
         \closure $aliasFinder, 
         \ReflectionClass $reflectionClass, 
         ?\ReflectionProperty $reflectionProperty = null, 
