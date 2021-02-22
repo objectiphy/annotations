@@ -163,7 +163,14 @@ class AnnotationResolver
             $resolved = $this->convertValueToObject($class, $itemName, $annotationClass, $value);
         } catch (\Exception $ex) {
             $args = [$annotationClass, $class, $ex->getMessage()];
-            $this->lastErrorMessage = sprintf('Error parsing annotation \'%1$s\' on \'%2$s\' - %3$s', ...$args);
+            if (strpos($itemName, ':') !== false) {
+                $type = strtok($itemName, ':') == 'm' ? 'method' : 'property';
+                $item = strtok(':');
+                $args = array_merge($args, [$type, $item]);
+                $this->lastErrorMessage = sprintf('Error parsing annotation \'%1$s\' on %4$s \'%5$s\' of \'%2$s\' - %3$s', ...$args);
+            } else {
+                $this->lastErrorMessage = sprintf('Error parsing annotation \'%1$s\' on \'%2$s\' - %3$s', ...$args);
+            }
         } finally {
             return $resolved ?? $this->populateGenericAnnotation($name, $value);
         }
