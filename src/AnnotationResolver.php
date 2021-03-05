@@ -206,7 +206,18 @@ class AnnotationResolver
                     $annotationReflectionClass,
                     $attributes
                 );
-                $object = new $annotationClass(...$mandatoryArgs);
+                try {
+                    $object = new $annotationClass(...$mandatoryArgs);
+                } catch (\Throwable $ex) {
+                    //Symfony serialization groups now insist on a 'value' key for each entry
+                    if (strpos($annotationClass, 'Group') !== false
+                        && is_array($mandatoryArgs[0] ?? null)
+                        && array_key_first($mandatoryArgs[0]) == 0
+                    ) {
+                        $mandatoryArgs[0] = ['value' => $mandatoryArgs[0][0]];
+                        $object = new $annotationClass(...$mandatoryArgs);
+                    }
+                }
             } else {
                 $object = new $annotationClass();
             }
