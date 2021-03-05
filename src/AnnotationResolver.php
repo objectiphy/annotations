@@ -36,7 +36,7 @@ class AnnotationResolver
      */
     public function setClassNameAttributes(array $classNameAttributes): void
     {
-        $this->classNameAttributes = $classNameAttributes;
+        $this->classNameAttributes = array_map('strtolower', $classNameAttributes);
     }
 
     /**
@@ -261,7 +261,20 @@ class AnnotationResolver
         $mandatoryArgs = [];
         foreach ($annotationReflectionClass->getConstructor()->getParameters() as $constructorArg) {
             if (!$constructorArg->isOptional()) {
-                if (!array_key_exists($constructorArg->getName(), $attributes)) {
+                $argName = $constructorArg->getName();
+                $attributeKey = array_key_exists($argName, $attributes) ? $argName : ''; //Default constructor arg could be keyed on empty string
+                if (!$attributeKey) {
+                    //Find the key with a case insensitive search and make a copy with the correct name
+                    foreach (array_keys($attributes) as $key) {
+                        if (strtolower($key) == strtolower($argName)) {
+                            $attributes[$argName] = $attributes[$key];
+                            $attributeKey = $argName;
+                            break;
+                        }
+                    }
+                }
+
+                if (!array_key_exists($attributeKey, $attributes)) {
                     //We cannot create it!
                     $errorMessage = sprintf(
                         'Cannot create instance of annotation %1$s (defined on %2$s) because constructor argument %3$s is mandatory and has not been supplied (or the annotation is malformed so could not be parsed).',
@@ -271,7 +284,7 @@ class AnnotationResolver
                     );
                     throw new AnnotationReaderException($errorMessage);
                 }
-                $mandatoryArgs[] = $attributes[$constructorArg->getName()];
+                $mandatoryArgs[] = $attributes[$attributeKey];
             }
         }
 
@@ -337,6 +350,11 @@ class AnnotationResolver
                 ['{', '}', ':', '\\\\', '', '', ''],
                 $value
             );
+            $jsonString = str_replace(
+                ['{{', '}}'],
+                ['{"":[', ']}'],
+                $jsonString
+            );
             $array = json_decode($jsonString, true, 512, \JSON_INVALID_UTF8_IGNORE | \JSON_BIGINT_AS_STRING);
             if ($array) {
                 //Now trim any whitespace from keys (values should be ok)
@@ -367,7 +385,7 @@ class AnnotationResolver
     {
         try {
             if (property_exists($object, $property)) {
-                if (in_array($property, $this->classNameAttributes)) {
+                if (in_array(strtolower($property), $this->classNameAttributes)) {
                     $propertyValue = $this->aliasFinder->findClassForAlias($this->reflectionClass, $propertyValue) ?: $propertyValue;
                 }
                 $reflectionProperty = new \ReflectionProperty($object, $property);

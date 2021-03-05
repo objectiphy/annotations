@@ -16,7 +16,9 @@ use Objectiphy\Annotations\Tests\Entity\TestEntity;
 use Objectiphy\Annotations\Tests\Annotations\Relationship;
 use Objectiphy\Annotations\Tests\Annotations\Table;
 use Objectiphy\Annotations\Tests\Entity\TestEntitySubClass;
+use Objectiphy\Annotations\Tests\Entity\TestNormalEntity;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Serializer\Annotation\Groups;
 
 class AnnotationReaderTest extends TestCase
 {
@@ -71,6 +73,12 @@ class AnnotationReaderTest extends TestCase
         $error = $this->object->getAnnotationFromProperty(TestEntity::class, 'madupProperty', Relationship::class);
         $this->assertNull($error);
         $this->assertStringContainsString('property', $this->object->lastErrorMessage);
+
+        //Serialization groups present
+        $column = $this->object->getAnnotationFromProperty(TestNormalEntity::class, 'product', Column::class);
+        $this->assertEquals('product', $column->name);
+        $group = $this->object->getAnnotationFromProperty(TestNormalEntity::class, 'product', Groups::class);
+        $this->assertEquals([0 => 'Default'], $group->getGroups());
     }
 
     public function testGetAnnotationFromMethod()
