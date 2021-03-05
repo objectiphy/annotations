@@ -365,11 +365,13 @@ class AnnotationResolver
                 ['{', '}', ':', '\\\\', '', '', ''],
                 $value
             );
-            $jsonString = str_replace(
-                ['{{', '}}'],
-                ['{"":[', ']}'],
-                $jsonString
-            );
+            if (strpos($jsonString, '{{') !== false) {
+                $jsonString = str_replace(
+                    ['{{', '}}'],
+                    ['{"":[', ']}'],
+                    $jsonString
+                );
+            }
             $array = json_decode($jsonString, true, 512, \JSON_INVALID_UTF8_IGNORE | \JSON_BIGINT_AS_STRING);
             if ($array) {
                 //Now trim any whitespace from keys (values should be ok)
