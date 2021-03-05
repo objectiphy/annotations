@@ -14,7 +14,8 @@ class AnnotationReader implements AnnotationReaderInterface
      * @var string In case we are in silent mode, any error messages will be reported here.
      */
     public string $lastErrorMessage = '';
-    protected bool $throwExceptions = true;
+    protected bool $throwExceptions = false;
+    protected bool $throwExceptionsObjectiphy = true;
 
     private ?\ReflectionClass $reflectionClass = null;
     private string $class = ''; //Just makes code more concise instead of grabbing from $reflectionClass all the time
@@ -32,16 +33,20 @@ class AnnotationReader implements AnnotationReaderInterface
      * @param bool $throwExceptions For silent operation, set to false, and any errors will be ignored, and annotations
      * that could not be parsed will be returned as null. Either way, the lastErrorMessage property will be populated
      * with any exception messages.
+     * @param bool $throwExceptionsObjectiphy Set to false to silence excpetions in Objectiphy annotations - only do
+     * this if you are using the annotation reader for non-Objectiphy annotations, or absolutely require silent
+     * operation.
      * @param DocParser|null $docParser
      * @param AnnotationResolver|null $resolver
      */
     public function __construct(
         array $classNameAttributes = [],
-        $throwExceptions = true,
+        $throwExceptions = false,
+        $throwExceptionsObjectiphy = true,
         ?DocParser $docParser = null,
         ?AnnotationResolver $resolver = null
     ) {
-        $this->setThrowExceptions($throwExceptions);
+        $this->setThrowExceptions($throwExceptions, $throwExceptionsObjectiphy);
         $this->docParser = $docParser ?? new DocParser();
         $this->resolver = $resolver ?? new AnnotationResolver();
         $this->setClassNameAttributes($classNameAttributes);
@@ -61,11 +66,15 @@ class AnnotationReader implements AnnotationReaderInterface
 
     /**
      * If you want to change the behaviour of exception handling after instantiation, you can call this setter.
-     * @param bool $value Whether or not to throw exceptions.
+     * Default is not to throw excpetions generally, only for Objectiphy annotations (since it is the wild west
+     * out there, and we can only be sure an exception is a problem if we know the expectations).
+     * @param bool $general Whether or not to throw exceptions.
+     * @param bool $objectiphy Whether or not to throw exceptionns for Objectiphy annotations
      */
-    public function setThrowExceptions(bool $value): void
+    public function setThrowExceptions(bool $general, bool $objectiphy = true): void
     {
-        $this->throwExceptions = $value;
+        $this->throwExceptions = $general;
+        $this->throwExceptionsObjectiphy = $objectiphy;
     }
 
     /**
@@ -340,17 +349,24 @@ class AnnotationReader implements AnnotationReaderInterface
             foreach ($annotations ?? [] as $index => $nameValuePair) {
                 foreach ($nameValuePair as $name => $value) {
                     $resolved = $this->resolver->resolveClassAnnotation($this->reflectionClass, $name, $value);
-                    if ($this->resolver->lastErrorMessage && $this->throwExceptions) {
-                        throw new AnnotationReaderException($this->resolver->lastErrorMessage);
-                    } else {
-                        $this->lastErrorMessage = $this->lastErrorMessage ?: $this->resolver->lastErrorMessage;
-                    }
+                    $this->handleResolverErrors();
                     $this->addResolvedToIndex($this->resolvedClassAnnotations[$this->class], $name, $resolved);
                 }
             }
         }
 
         return $this->resolvedClassAnnotations[$this->class];
+    }
+    
+    private function handleResolverErrors()
+    {
+        if (!$this->resolver->objectiphyAnnotationError && $this->resolver->lastErrorMessage && $this->throwExceptions) {
+            throw new AnnotationReaderException($this->resolver->lastErrorMessage);
+        } elseif ($this->resolver->objectiphyAnnotationError && $this->resolver->lastErrorMessage && $this->throwExceptionsObjectiphy) {
+            throw new AnnotationReaderObjectiphyException($this->resolver->lastErrorMessage);
+        } else {
+            $this->lastErrorMessage = $this->lastErrorMessage ?: $this->resolver->lastErrorMessage;
+        }
     }
 
     /**
@@ -373,11 +389,7 @@ class AnnotationReader implements AnnotationReaderInterface
                             $name, 
                             $value
                         );
-                        if ($this->resolver->lastErrorMessage && $this->throwExceptions) {
-                            throw new AnnotationReaderException($this->resolver->lastErrorMessage);
-                        } else {
-                            $this->lastErrorMessage = $this->lastErrorMessage ?: $this->resolver->lastErrorMessage;
-                        }
+                        $this->handleResolverErrors();
                         $this->addResolvedToIndex(
                             $this->resolvedPropertyAnnotations[$this->class][$propertyName], 
                             $name, 
@@ -411,11 +423,7 @@ class AnnotationReader implements AnnotationReaderInterface
                             $name, 
                             $value
                         );
-                        if ($this->resolver->lastErrorMessage && $this->throwExceptions) {
-                            throw new AnnotationReaderException($this->resolver->lastErrorMessage);
-                        } else {
-                            $this->lastErrorMessage = $this->lastErrorMessage ?: $this->resolver->lastErrorMessage;
-                        }
+                        $this->handleResolverErrors();
                         $this->addResolvedToIndex(
                             $this->resolvedMethodAnnotations[$this->class][$methodName], 
                             $name, 
@@ -556,15 +564,17 @@ class AnnotationReader implements AnnotationReaderInterface
 
     /**
      * Decide whether to throw or return null.
-     * @param \Exception $ex
+     * @param \Throwable $ex
      * @param bool $returnEmptyArray
      * @return array|null
-     * @throws \Exception
+     * @throws \Throwable
      */
-    private function handleException(\Exception $ex, bool $returnEmptyArray = false): ?array
+    private function handleException(\Throwable $ex, bool $returnEmptyArray = false): ?array
     {
         $this->lastErrorMessage = $ex->getMessage();
-        if ($this->throwExceptions) {
+        if ($this->throwExceptions || 
+            ($this->throwExceptionsObjectiphy && $ex instanceof AnnotationReaderObjectiphyException)
+        ) {
             throw $ex;
         }
 

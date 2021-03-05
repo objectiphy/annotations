@@ -143,9 +143,9 @@ When type-hinting for an annotation reader in your own code, you should always h
 
 ## Silent operation
 
-In most cases, if you ask the annotation reader to do something that does not make sense (eg. to create a class that does not exist), you would expect it to throw an exception - which it does. However, there might be times when you don't want this to happen (eg. when using the annotation reader in a command-line script where failures should be ignored).
+As there are no rules governing how annotations should be unserialized into objects, there might be cases where the reader cannot create the expected object. By default, this will fail silently UNLESS it relates to an Objectiphy annotation (in which case we know what the rules are, so exceptions are exceptions). If any errors occur while in silent mode, the `$lastErrorMessage` property will be populated, and a value of `null` will be returned, but no exception will be thrown.
 
-To switch to silent mode, just set the `$throwExceptions` argument to false in the constructor when creating an AnnotationReader instance. If any errors occur while in silent mode, the `$lastErrorMessage` property will be populated, and a value of `null` will be returned, but no exception will be thrown.
+To get it to throw exceptions for non-Objectiphy annotations, just set the `$throwExceptions` argument to true in the constructor when creating an AnnotationReader instance. To suppress exceptions for Objectiphy annotations, set the `$throwExceptionsObjectiphy` flag to false. 
 
 ## Caching
 

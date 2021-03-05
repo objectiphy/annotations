@@ -12,9 +12,12 @@ interface AnnotationReaderInterface extends AnnotationReaderInterfaceBase
 {
     /**
      * If you want to change the behaviour of exception handling after instantiation, you can call this setter.
-     * @param bool $value Whether or not to throw exceptions.
+     * Default is not to throw excpetions generally, only for Objectiphy annotations (since it is the wild west
+     * out there, and we can only be sure an exception is a problem if we know the expectations).
+     * @param bool $general Whether or not to throw exceptions.
+     * @param bool $objectiphy Whether or not to throw exceptionns for Objectiphy annotations
      */
-    public function setThrowExceptions(bool $value): void;
+    public function setThrowExceptions(bool $general, bool $objectiphy = true): void;
     
     /**
      * Identify which attributes on the annotations we are reading refer to class names that might need to be expanded

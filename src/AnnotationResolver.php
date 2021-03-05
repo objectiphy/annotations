@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Objectiphy\Annotations;
 
+use Objectiphy\Objectiphy\Mapping\ObjectiphyAnnotation;
+
 /**
  * @author Russell Walker <rwalker.php@gmail.com>
  * Resolve annotation string values into objects
@@ -11,6 +13,7 @@ namespace Objectiphy\Annotations;
 class AnnotationResolver
 {
     public string $lastErrorMessage = '';
+    public bool $objectiphyAnnotationError = false;
     
     private ClassAliasFinder $aliasFinder;
     private array $classNameAttributes;
@@ -171,6 +174,7 @@ class AnnotationResolver
             } else {
                 $this->lastErrorMessage = sprintf('Error parsing annotation \'%1$s\' on \'%2$s\' - %3$s', ...$args);
             }
+            $this->objectiphyAnnotationError = $annotationClass == ObjectiphyAnnotation::class;
         } finally {
             return $resolved ?? $this->populateGenericAnnotation($name, $value);
         }
