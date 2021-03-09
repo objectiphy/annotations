@@ -320,6 +320,7 @@ class AnnotationResolver
         $attrEnd = 0;
         $previousNonSpace = '';
         $nextNonSpace = '';
+        $openCurly = null;
         foreach (str_split($value) as $i => $char) {
             switch ($char) {
                 case '(':
@@ -346,9 +347,21 @@ class AnnotationResolver
                             $attrEnd = 0;
                         }
                     }
+                    $openCurly = null;
+                    break;
+                case '{':
+                    $openCurly = $i;
+                    break;
+                case '}':
+                    if ($openCurly !== null) {
+                        //Replace last openCurly and this one with square brackets
+                        $value = substr($value, 0, $openCurly)
+                            . '[' . substr($value, $openCurly + 1, ($i - $openCurly) - 1) . ']'
+                            . substr($value, $i + 1);
+                    }
+                    $openCurly = null;
                     break;
             }
-            //$previousNonSpace = ctype_space($char) ? $previousNonSpace : $char;
         }
 
         //Wrap all the keys in quotes
@@ -365,10 +378,10 @@ class AnnotationResolver
                 ['{', '}', ':', '\\\\', '', '', ''],
                 $value
             );
-            if (strpos($jsonString, '{{') !== false) {
+            if (strpos($jsonString, '{[') !== false) {
                 $jsonString = str_replace(
-                    ['{{', '}}'],
-                    ['{"":[', ']}'],
+                    '{[',
+                    '{"":[',
                     $jsonString
                 );
             }
