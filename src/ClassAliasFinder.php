@@ -139,13 +139,15 @@ class ClassAliasFinder
         $useStatements = [];
         $useStatement = $prefix;
         $alias = false;
+        $nsTokens = \PHP_MAJOR_VERSION >= 8 ? [\T_NAME_QUALIFIED, \T_NAME_FULLY_QUALIFIED, \T_NAME_RELATIVE] : [];
+        $nsTokens = array_merge($nsTokens, [\T_NS_SEPARATOR, \T_STRING]);
         for ($i = $index + 1; $i < count($tokens); $i++) {
             $index = $i;
             if (is_array($tokens[$i])) {
                 if ($tokens[$i][0] == \T_AS) {
                     //Alias follows...
                     $alias = true;
-                } elseif (in_array($tokens[$i][0], [\T_NS_SEPARATOR, \T_STRING]) && strlen(trim($tokens[$i][1])) > 0) {
+                } elseif (in_array($tokens[$i][0], $nsTokens) && strlen(trim($tokens[$i][1])) > 0) {
                     if ($alias) {
                         if (!isset($useStatements[$useStatement])) {
                             $useStatements[$useStatement] = '';
