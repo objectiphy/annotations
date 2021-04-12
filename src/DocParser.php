@@ -104,11 +104,18 @@ class DocParser
         $annotationStart = strpos($docComment, '@');
         if ($annotationStart !== false) {
             $allAnnotations = explode('@', substr($docComment, $annotationStart));
-            foreach ($allAnnotations as $annotationString) {
+            foreach ($allAnnotations as $index => $annotationString) {
                 if ($annotationString) {
                     $key = '';
                     $value = '';
+                    if (strpos($annotationString, 'name="student_course"') !== false) {
+                        $stop = true;
+                    }
                     $this->extractAnnotationKeyValue($annotationString, $key, $value);
+                    if (substr(rtrim($value), -1) == '{') {
+                        //The next one is a child - give it a placeholder for now
+                        $value .= '"_CHILD_' . ($index + 1) . '"})';
+                    }
                     $annotationList[] = [$key, $value];
                 }
             }
@@ -145,6 +152,10 @@ class DocParser
                 $value .= $char;
             }
             $lastCharWasStar = $char == '*';
+        }
+
+        if ($lookForClosingBracket) {
+            $value = '(' . $value;
         }
     }
 }
