@@ -82,6 +82,9 @@ class DocParser
      */
     private function parseDocComment(string $docComment): array
     {
+if (strpos($docComment, 'student_course') !== false) {
+    $stop = true;
+}
         $annotations = [];
         $annotationList = $this->getAnnotationList($docComment) ?? [];
         foreach ($annotationList as $index => $annotationKvp) {
@@ -93,12 +96,70 @@ class DocParser
         return $annotations;
     }
 
+    private function getAnnotationList(string $docComment): array
+    {
+        $annotationList = [];
+        $children = [];
+        $annotationStart = strpos($docComment, '@');
+        if ($annotationStart !== false) {
+            $annotationString = substr($docComment, $annotationStart + 1);
+            $keyFound = $lookForClosingBracket = $lastCharWasStar = $buildingChild = false;
+            $childComment = $key = $value = '';
+            foreach (str_split($annotationString) as $char) { //Faster than traversing the string
+                if (!$keyFound) {
+                    $lookForClosingBracket = $lookForClosingBracket || $char == '(';
+                    $keyFound = strlen(trim($key)) > 0 && (ctype_space($char) || $lookForClosingBracket);
+                    if ($buildingChild) {
+                        $childComment .= $char;
+                    } else {
+                        $key .= $keyFound ? '' : $char;
+                    }
+                } elseif ($lookForClosingBracket && $char == ')') {
+                    if ($buildingChild) {
+                        $childComment .= $char;
+                        $buildingChild = false; //End of child comment
+                        $children[] = $this->getAnnotationList($childComment);
+                        $value .= '{child_' . count($children) . '}';
+                    } else {
+                        $value = '(' . $value . ')';
+                    }
+                    $annotationList[] = [$key, $value];
+                    $lookForClosingBracket = $keyFound = $key = $value = '';
+                } elseif (!$lookForClosingBracket && $char == '/' && $lastCharWasStar) {
+                    //End of annotation
+                    if ($buildingChild) {
+                        $buildingChild = false;
+                        $value = $this->getAnnotationList($childComment);
+                    }
+                    $annotationList[] = [$key, $value];
+                    $lookForClosingBracket = $keyFound = $key = $value = '';
+                } elseif ($char != '*') {
+                    if ($char == '@' && $keyFound && $lookForClosingBracket) {
+                        //Start of a new child object - find the end, and parse it as a comment on its own
+                        $buildingChild = true;
+                        $childComment .= $char;
+                    } elseif ($char == '@' && !$lookForClosingBracket) { //New entry
+                        $annotationList[] = [$key, $value];
+                        $lookForClosingBracket = $keyFound = $key = $value = '';
+                    } elseif ($buildingChild) {
+                        $childComment .= $char;
+                    } else {
+                        $value .= $char;
+                    }
+                } 
+                $lastCharWasStar = $char == '*';
+            }
+        }
+
+        return $annotationList;
+    }
+    
     /**
      * Pick out just the parts of the doc comment that are annotations.
      * @param string $docComment
      * @return array
      */
-    private function getAnnotationList(string $docComment): array
+    private function getAnnotationListOld(string $docComment): array
     {
         $annotationList = [];
         $annotationStart = strpos($docComment, '@');
