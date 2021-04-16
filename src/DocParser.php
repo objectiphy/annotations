@@ -87,10 +87,15 @@ if (strpos($docComment, 'student_course') !== false) {
 }
         $annotations = [];
         $annotationList = $this->getAnnotationList($docComment) ?? [];
-        foreach ($annotationList as $index => $annotationKvp) {
+        foreach ($annotationList['parents'] as $index => $annotationKvp) {
             $annotationName = $annotationKvp[0];
             $annotationValue = trim($annotationKvp[1]);
             $annotations[] = [$annotationName => $annotationValue];
+        }
+        foreach ($annotationList['children'] as $index => $annotationKvp) {
+            $annotationName = $annotationKvp[0];
+            $annotationValue = trim($annotationKvp[1]);
+            $annotations[] = ['_child_' . $index . ':' . $annotationName => $annotationValue];
         }
 
         return $annotations;
@@ -103,12 +108,21 @@ if (strpos($docComment, 'student_course') !== false) {
         $annotationStart = strpos($docComment, '@');
         if ($annotationStart !== false) {
             $annotationString = substr($docComment, $annotationStart + 1);
-            $keyFound = $lookForClosingBracket = $lastCharWasStar = $buildingChild = false;
+            $keyFound = $lookForClosingBracket = $lookForNew = $lastCharWasStar = $buildingChild = false;
             $childComment = $key = $value = '';
+            $saveAnnotation = function($key, $value) use(&$annotationList, &$keyFound, &$lookForClosingBracket, &$lookForNew, &$lastCharWasStar, &$buildingChild, &$childComment) {
+                $annotationList[] = [$key, $value];
+                $keyFound = $lookForClosingBracket = $lookForNew = $lastCharWasStar = $buildingChild = false;
+                $childComment = $key = $value = '';
+            };
+
             foreach (str_split($annotationString) as $char) { //Faster than traversing the string
+                if ($lookForNew && $char != '*') {
+                    continue;
+                }
                 if (!$keyFound) {
                     $lookForClosingBracket = $lookForClosingBracket || $char == '(';
-                    $keyFound = strlen(trim($key)) > 0 && (ctype_space($char) || $lookForClosingBracket);
+                    $keyFound = strlen(trim(str_replace('*', '', $key))) > 0 && (ctype_space($char) || $lookForClosingBracket);
                     if ($buildingChild) {
                         $childComment .= $char;
                     } else {
@@ -122,25 +136,23 @@ if (strpos($docComment, 'student_course') !== false) {
                         $value .= '{child_' . count($children) . '}';
                     } else {
                         $value = '(' . $value . ')';
+                        $saveAnnotation($key, $value);
+                        $lookForNew = true;
                     }
-                    $annotationList[] = [$key, $value];
-                    $lookForClosingBracket = $keyFound = $key = $value = '';
                 } elseif (!$lookForClosingBracket && $char == '/' && $lastCharWasStar) {
                     //End of annotation
                     if ($buildingChild) {
                         $buildingChild = false;
                         $value = $this->getAnnotationList($childComment);
                     }
-                    $annotationList[] = [$key, $value];
-                    $lookForClosingBracket = $keyFound = $key = $value = '';
+                    $saveAnnotation($key, $value);
                 } elseif ($char != '*') {
                     if ($char == '@' && $keyFound && $lookForClosingBracket) {
                         //Start of a new child object - find the end, and parse it as a comment on its own
                         $buildingChild = true;
                         $childComment .= $char;
                     } elseif ($char == '@' && !$lookForClosingBracket) { //New entry
-                        $annotationList[] = [$key, $value];
-                        $lookForClosingBracket = $keyFound = $key = $value = '';
+                        $saveAnnotation($key, $value);
                     } elseif ($buildingChild) {
                         $childComment .= $char;
                     } else {
@@ -151,7 +163,7 @@ if (strpos($docComment, 'student_course') !== false) {
             }
         }
 
-        return $annotationList;
+        return ['parents' => $annotationList, 'children' => $children];
     }
     
     /**
