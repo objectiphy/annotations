@@ -66,7 +66,7 @@ class AnnotationResolver
     public function resolveClassAnnotation(\ReflectionClass $reflectionClass, string $name, string $value): object
     {
         $this->initialise($reflectionClass);
-        return $this->resolveAnnotation('c', $name, $value);
+        return $this->resolveAnnotation('c', $name, $value, []);
     }
 
     /**
@@ -81,14 +81,15 @@ class AnnotationResolver
         \ReflectionClass $reflectionClass, 
         string $propertyName, 
         string $name, 
-        string $value
+        string $value,
+        array $children = []
     ): object {
         $reflectionProperty = $reflectionClass->hasProperty($propertyName) 
             ? $reflectionClass->getProperty($propertyName) 
             : null;
         $this->initialise($reflectionClass, $reflectionProperty);
 
-        return $this->resolveAnnotation('p:' . $propertyName, $name, $value);
+        return $this->resolveAnnotation('p:' . $propertyName, $name, $value, $children);
     }
 
     /**
@@ -103,14 +104,15 @@ class AnnotationResolver
         \ReflectionClass $reflectionClass, 
         string $methodName, 
         string $name, 
-        string $value
+        string $value,
+        array $children = []
     ): object {
         $reflectionMethod = $reflectionClass->hasMethod($methodName) 
             ? $reflectionClass->getMethod($methodName) 
             : null;
         $this->initialise($reflectionClass, null, $reflectionMethod);
 
-        return $this->resolveAnnotation('m:' . $methodName, $name, $value);
+        return $this->resolveAnnotation('m:' . $methodName, $name, $value, $children);
     }
 
     /**
@@ -128,7 +130,8 @@ class AnnotationResolver
             $generic->parentClass->getName(),
             $generic->getItemName(),
             $className,
-            $generic->value
+            $generic->value,
+            []
         );
     }
 
@@ -158,12 +161,12 @@ class AnnotationResolver
      * custom class recognised. Custom class annotations can be cached by class name, as they would typically only
      * appear once per item.
      */
-    private function resolveAnnotation(string $itemName, string $name, string $value): object
+    private function resolveAnnotation(string $itemName, string $name, string $value, array $children): object
     {
         $class = $this->reflectionClass->getName();
         $annotationClass = $this->aliasFinder->findClassForAlias($this->reflectionClass, $name, false);
         try {
-            $resolved = $this->convertValueToObject($class, $itemName, $annotationClass, $value);
+            $resolved = $this->convertValueToObject($class, $itemName, $annotationClass, $value, $children);
         } catch (\Exception $ex) {
             $args = [$annotationClass, $class, $ex->getMessage()];
             if (strpos($itemName, ':') !== false) {
@@ -194,7 +197,8 @@ class AnnotationResolver
         string $className,
         string $itemName,
         string $annotationClass,
-        string $value
+        string $value,
+        array $children
     ): ?object {
         if (class_exists($annotationClass)) {
             //Extract attribute values
@@ -228,6 +232,9 @@ class AnnotationResolver
 
             //Set properties
             foreach ($attributes as $attributeName => $attributeValue) {
+                if (is_string($attributeValue) && array_key_exists($attributeValue, $children)) {
+                    $attributeValue = $children[$attributeValue];
+                }
                 $this->setPropertyOnObject($object, $attributeName, $attributeValue, $attributes);
             }
 

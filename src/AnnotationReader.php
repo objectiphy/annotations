@@ -377,30 +377,10 @@ class AnnotationReader implements AnnotationReaderInterface
      */
     private function resolvePropertyAnnotations(string $propertyName): array
     {
-        if (empty($this->resolvedPropertyAnnotations[$this->class][$propertyName])) {
-            $this->resolvedPropertyAnnotations[$this->class][$propertyName] = [];
-            $annotations = $this->docParser->getPropertyAnnotations($this->reflectionClass);
-            if (!empty($annotations[$propertyName])) {
-                foreach ($annotations[$propertyName] as $nameValuePair) {
-                    foreach ($nameValuePair as $name => $value) {
-                        $resolved = $this->resolver->resolvePropertyAnnotation(
-                            $this->reflectionClass, 
-                            $propertyName, 
-                            $name, 
-                            $value
-                        );
-                        $this->handleResolverErrors();
-                        $this->addResolvedToIndex(
-                            $this->resolvedPropertyAnnotations[$this->class][$propertyName], 
-                            $name, 
-                            $resolved
-                        );
-                    }
-                }
-            }
-        }
-
-        return $this->resolvedPropertyAnnotations[$this->class][$propertyName];
+        return $this->resolveAnnotations(
+            $this->resolvedPropertyAnnotations[$this->class],
+            $propertyName
+        );
     }
 
     /**
@@ -411,29 +391,62 @@ class AnnotationReader implements AnnotationReaderInterface
      */
     private function resolveMethodAnnotations(string $methodName): array
     {
-        if (empty($this->resolvedMethodAnnotations[$this->class][$methodName])) {
-            $this->resolvedMethodAnnotations[$this->class][$methodName] = [];
-            $annotations = $this->docParser->getMethodAnnotations($this->reflectionClass);
-            if (!empty($annotations[$methodName])) {
-                foreach ($annotations[$methodName] as $nameValuePair) {
+        return $this->resolveAnnotations(
+            $this->resolvedMethodAnnotations[$this->class],
+            $methodName,
+            'Method'
+        );
+    }
+
+    private function resolveAnnotations(&$annotationArray, string $key, string $type = 'Property')
+    {
+        if (empty($annotationArray[$key])) {
+            $annotationArray[$key] = [];
+            $annotations = $this->docParser->{'get' . ucfirst($type) . 'Annotations'}($this->reflectionClass);
+            if (!empty($annotations[$key])) {
+                //Reverse array to resolve children first
+                $children = [];
+                foreach (array_reverse($annotations[$key]) as $nameValuePair) {
                     foreach ($nameValuePair as $name => $value) {
-                        $resolved = $this->resolver->resolveMethodAnnotation(
-                            $this->reflectionClass, 
-                            $methodName, 
-                            $name, 
-                            $value
-                        );
+                        if (substr($name, 0, 7) == '_child_') {
+                            $children[strtok($name, ':')] = $this->resolver->{'resolve' . ucfirst($type) . 'Annotation'}(
+                                $this->reflectionClass,
+                                $key,
+                                strtok(':'),
+                                $value
+                            );
+                        } else {
+                            $resolved = $this->resolver->{'resolve' . ucfirst($type) . 'Annotation'}(
+                                $this->reflectionClass,
+                                $key,
+                                $name,
+                                $value,
+                                $children
+                            );
+                        }
                         $this->handleResolverErrors();
-                        $this->addResolvedToIndex(
-                            $this->resolvedMethodAnnotations[$this->class][$methodName], 
-                            $name, 
-                            $resolved
-                        );
+                        if (!empty($resolved)) {
+                            $this->addResolvedToIndex(
+                                $annotationArray[$key],
+                                $name,
+                                $resolved
+                            );
+                        }
                     }
+                }
+
+                //TODO: Clean this up - maybe return the index from addResolvedToIndex so we don't have to figure out which array to reverse?
+                if (isset($annotationArray[$key][$name]) && is_array($annotationArray[$key][$name])) {
+                    $annotationArray[$key][$name] = array_reverse($annotationArray[$key][$name]);
+                } elseif (isset($annotationArray[$key][get_class($resolved)]) && is_array($annotationArray[$key][get_class($resolved)])) {
+                    $annotationArray[$key][get_class($resolved)] = array_reverse($annotationArray[$key][get_class($resolved)]);
+                } elseif (isset($annotationArray[$key]) && is_array($annotationArray[$key])) {
+                    $annotationArray[$key] = array_reverse($annotationArray[$key]);
                 }
             }
         }
-        return $this->resolvedMethodAnnotations[$this->class][$methodName];
+
+        return $annotationArray[$key];
     }
 
     /**

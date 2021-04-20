@@ -82,20 +82,22 @@ class DocParser
      */
     private function parseDocComment(string $docComment): array
     {
-if (strpos($docComment, 'student_course') !== false) {
-    $stop = true;
-}
         $annotations = [];
         $annotationList = $this->getAnnotationList($docComment) ?? [];
         foreach ($annotationList['parents'] as $index => $annotationKvp) {
             $annotationName = $annotationKvp[0];
             $annotationValue = trim($annotationKvp[1]);
+            foreach ($annotationList['children'] as $index => $childAnnotations) {
+                $annotationValue = str_replace('{_child_' . ($index + 1) . '}', '"_child_' . ($index + 1) . '"', $annotationValue);
+            }
             $annotations[] = [$annotationName => $annotationValue];
         }
-        foreach ($annotationList['children'] as $index => $annotationKvp) {
-            $annotationName = $annotationKvp[0];
-            $annotationValue = trim($annotationKvp[1]);
-            $annotations[] = ['_child_' . $index . ':' . $annotationName => $annotationValue];
+        foreach ($annotationList['children'] as $index => $childAnnotationList) {
+            foreach ($childAnnotationList['parents'] as $annotationKvp) {
+                $annotationName = $annotationKvp[0];
+                $annotationValue = trim($annotationKvp[1]);
+                $annotations[] = ['_child_' . ($index + 1) . ':' . $annotationName => $annotationValue];
+            }
         }
 
         return $annotations;
@@ -110,30 +112,32 @@ if (strpos($docComment, 'student_course') !== false) {
             $annotationString = substr($docComment, $annotationStart + 1);
             $keyFound = $lookForClosingBracket = $lookForNew = $lastCharWasStar = $buildingChild = false;
             $childComment = $key = $value = '';
-            $saveAnnotation = function($key, $value) use(&$annotationList, &$keyFound, &$lookForClosingBracket, &$lookForNew, &$lastCharWasStar, &$buildingChild, &$childComment) {
+            $saveAnnotation = function(&$key, &$value) use(&$annotationList, &$keyFound, &$lookForClosingBracket, &$lookForNew, &$lastCharWasStar, &$buildingChild, &$childComment) {
                 $annotationList[] = [$key, $value];
                 $keyFound = $lookForClosingBracket = $lookForNew = $lastCharWasStar = $buildingChild = false;
                 $childComment = $key = $value = '';
             };
 
             foreach (str_split($annotationString) as $char) { //Faster than traversing the string
-                if ($lookForNew && $char != '*') {
+                if ($lookForNew && $char != '@') {
                     continue;
                 }
+                $lookForNew = false;
                 if (!$keyFound) {
                     $lookForClosingBracket = $lookForClosingBracket || $char == '(';
                     $keyFound = strlen(trim(str_replace('*', '', $key))) > 0 && (ctype_space($char) || $lookForClosingBracket);
                     if ($buildingChild) {
                         $childComment .= $char;
                     } else {
-                        $key .= $keyFound ? '' : $char;
+                        $key .= $keyFound ? '' : ($char == '@' ? '' : $char);
                     }
                 } elseif ($lookForClosingBracket && $char == ')') {
                     if ($buildingChild) {
                         $childComment .= $char;
                         $buildingChild = false; //End of child comment
                         $children[] = $this->getAnnotationList($childComment);
-                        $value .= '{child_' . count($children) . '}';
+                        $value .= '_child_' . count($children);
+                        $childComment = '';
                     } else {
                         $value = '(' . $value . ')';
                         $saveAnnotation($key, $value);
