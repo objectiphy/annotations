@@ -234,6 +234,12 @@ class AnnotationResolver
             foreach ($attributes as $attributeName => $attributeValue) {
                 if (is_string($attributeValue) && array_key_exists($attributeValue, $children)) {
                     $attributeValue = $children[$attributeValue];
+                } elseif (is_array($attributeValue)) {
+                    foreach ($attributeValue as $attributeIndex => $attributeValueItem) {
+                        if (is_string($attributeValueItem) && array_key_exists($attributeValueItem, $children)) {
+                            $attributeValue[$attributeIndex] = $children[$attributeValueItem];
+                        }
+                    }
                 }
                 $this->setPropertyOnObject($object, $attributeName, $attributeValue, $attributes);
             }

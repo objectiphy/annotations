@@ -88,7 +88,7 @@ class DocParser
             $annotationName = $annotationKvp[0];
             $annotationValue = trim($annotationKvp[1]);
             foreach ($annotationList['children'] as $index => $childAnnotations) {
-                $annotationValue = str_replace('{_child_' . ($index + 1) . '}', '"_child_' . ($index + 1) . '"', $annotationValue);
+                $annotationValue = str_replace('_child_' . ($index + 1), '"_child_' . ($index + 1) . '"', $annotationValue);
             }
             $annotations[] = [$annotationName => $annotationValue];
         }
