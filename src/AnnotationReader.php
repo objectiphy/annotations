@@ -346,7 +346,8 @@ class AnnotationReader implements AnnotationReaderInterface
         if (empty($this->resolvedClassAnnotations[$this->class])) {
             $this->resolvedClassAnnotations[$this->class] = [];
             $annotations = $this->docParser->getClassAnnotations($this->reflectionClass);
-            foreach ($annotations ?? [] as $index => $nameValuePair) {
+            //Reverse array for consistency with property and method annotations, even though we don't support kids on a class annotation
+            foreach (array_reverse($annotations ?? []) as $index => $nameValuePair) {
                 foreach ($nameValuePair as $name => $value) {
                     $resolved = $this->resolver->resolveClassAnnotation($this->reflectionClass, $name, $value);
                     $this->handleResolverErrors();
@@ -433,15 +434,6 @@ class AnnotationReader implements AnnotationReaderInterface
                             );
                         }
                     }
-                }
-
-                //TODO: Clean this up - maybe return the index from addResolvedToIndex so we don't have to figure out which array to reverse?
-                if (isset($annotationArray[$key][$name]) && is_array($annotationArray[$key][$name])) {
-                    $annotationArray[$key][$name] = array_reverse($annotationArray[$key][$name]);
-                } elseif (isset($annotationArray[$key][get_class($resolved)]) && is_array($annotationArray[$key][get_class($resolved)])) {
-                    $annotationArray[$key][get_class($resolved)] = array_reverse($annotationArray[$key][get_class($resolved)]);
-                } elseif (isset($annotationArray[$key]) && is_array($annotationArray[$key])) {
-                    $annotationArray[$key] = array_reverse($annotationArray[$key]);
                 }
             }
         }
@@ -537,6 +529,8 @@ class AnnotationReader implements AnnotationReaderInterface
     /**
      * If we already have an item in the index, turn it into an array and add to the array; otherwise, just set the
      * value directly (we only want to return an array if the same annotation appears more than once on an item).
+     * As annotations are resolved in reverse order (to ensure children are available when parents are resolved),
+     * we must add them to the index in reverse order to get them back to the expected order.
      * @param array $index
      * @param string $name
      * @param object $value
@@ -547,9 +541,9 @@ class AnnotationReader implements AnnotationReaderInterface
             if (!is_array($index[$name])) {
                 $index[$name] = [$index[$name]];
             }
-            $index[$name][] = $value;
+            array_unshift($index[$name], $value);
         } else {
-            $index[$name] = $value;
+            $index = [$name => $value] + $index; //Prepend, preserving keys
         }
     }
 
