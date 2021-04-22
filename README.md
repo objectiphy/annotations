@@ -1,15 +1,32 @@
 # Objectiphy Annotations
 
 ## Description
-A standalone annotation reader that reads and parses annotations in PHP doc comments. Compatible with Doctrine, but does not require it (ie. it can be used in place of the Doctrine annotation reader, but it is perhaps a bit more flexible).
+A standalone annotation reader that reads and parses annotations in PHP 
+doc comments. Compatible with Doctrine, but does not require it, ie. it 
+can be used in place of the Doctrine annotation reader, as long as you 
+don't need nested annotations on a class (nested annotations on 
+properties and methods are OK). Nested class annotations are not 
+supported because Objectiphy does not need them, and other projects that 
+currently rely on annotations will be moving to native PHP 8 attributes 
+which do not support nested attributes at all, so it didn't seem worth 
+the effort.
 
 ## Why not just use Doctrine?
 
-No reason! By all means, use Doctrine - it is great. I wrote this partly as an academic exercise, but also to give me more freedom to do what I want. At the time of writing, Doctrine makes you jump through a few hoops and is not very tolerant of random non-standard annotations that you have not told it about. I think this is a little easier to use, and it should perform just as well as the Doctrine one. You can read any annotation with this reader.
+No reason! By all means, use Doctrine - it is great. I wrote this partly 
+as an academic exercise, but also to give me more freedom to do what I 
+want. At the time of writing, Doctrine makes you jump through a few 
+hoops and is not very tolerant of random non-standard annotations that 
+you have not told it about. I think this is a little easier to use, and 
+it should perform just as well as the Doctrine one. You can read any 
+annotation with this reader (except nested annotations on a class).
 
 ## Requirements
 
-Objectiphy Annotations requires PHP 7.4 or higher. It has no other dependencies. I chose PHP 7.4 because that is the latest version at time of writing, and allows me to use type hints on properties which earlier versions of PHP did not support.
+Objectiphy Annotations requires PHP 7.4 or higher. It has no other 
+dependencies. I chose PHP 7.4 because that was the latest version at 
+time of writing, and allowed me to use type hints on properties which 
+earlier versions of PHP did not support.
 
 ## Installation
 
@@ -17,7 +34,8 @@ You can install Objectiphy Annotations with composer:
 ```
 composer require objectiphy/annotations
 ```
-...or just git clone or download the project and include it directly or with a PSR-4 autoloader.
+...or just git clone or download the project and include it directly or 
+with a PSR-4 autoloader.
 
 ## Basic usage
 
@@ -90,7 +108,8 @@ class MyAnnotation
 }
 ```
 
-...you can use it as an annotation on a class, property, or method, like this:
+...you can use it as an annotation on a class, property, or method, like
+this:
 
 ```php
 namespace MyNamespace\Entities;
@@ -109,7 +128,8 @@ class MyEntity2
 }
 ```
 
-...and use the annotation reader to resolve the annotation into an instance of your custom annotation class, like this:
+...and use the annotation reader to resolve the annotation into an 
+instance of your custom annotation class, like this:
 
 ```php
 use Objectiphy\Annotations\AnnotationReader;
@@ -125,7 +145,8 @@ echo "Child Class Name: " . $annotation->childClassName . "\n";
 echo "Value: " . $annotation->value;
 ```
 
-...which would output the following (note that because we told it that `childClassNameName` is a class name attribute, it went ahead and resolved that to a fully qualified class name):
+...which would output the following (note that because we told it that 
+`childClassNameName` is a class name attribute, it went ahead and resolved that to a fully qualified class name):
 
 ```
 Name: nameValue
@@ -133,25 +154,56 @@ Child Class Name: MyNamespace\ValueObjects\OtherClass
 Value: 200
 ```
 
-When populating your object, the annotation reader will check to see if there are any mandatory constructor arguments, and will pass any matching values into the constructor. It will then go through all of the defined attributes, and if there is a matching property name, it will set that property to the value of the attribute (using a setter if the property is not public and there is a method with a matching name prefixed with 'set').
+When populating your object, the annotation reader will check to see if 
+there are any mandatory constructor arguments, and will pass any 
+matching values into the constructor. It will then go through all of 
+the defined attributes, and if there is a matching property name, it 
+will set that property to the value of the attribute (using a setter if 
+the property is not public and there is a method with a matching name 
+prefixed with 'set').
 
 ## Using the interface
 
-The annotation reader implements AnnotationReaderInterface, which extends the Doctrine Reader interface if it exists. You can therefore pass an instance of AnnotationReader to any service that requires the Doctrine Reader interface. 
+The annotation reader implements AnnotationReaderInterface, which 
+extends the Doctrine Reader interface if it exists. You can therefore 
+pass an instance of AnnotationReader to any service that requires the 
+Doctrine Reader interface. 
 
-When type-hinting for an annotation reader in your own code, you should always hint on `AnnotationReaderInterface` (or Doctrine's `Reader`) - do not hint on `AnnotationReader` itself. This will allow you (for example) to later swap out the concrete implementation to a cached reader (see Caching section, below).
+When type-hinting for an annotation reader in your own code, you should 
+always hint on `AnnotationReaderInterface` (or Doctrine's `Reader`) - 
+do not hint on `AnnotationReader` itself. This will allow you (for 
+example) to later swap out the concrete implementation to a cached 
+reader (see Caching section, below).
 
 ## Silent operation
 
-As there are no rules governing how annotations should be unserialized into objects, there might be cases where the reader cannot create the expected object. By default, this will fail silently UNLESS it relates to an Objectiphy annotation (in which case we know what the rules are, so exceptions are exceptions). If any errors occur while in silent mode, the `$lastErrorMessage` property will be populated, and a value of `null` will be returned, but no exception will be thrown.
+As there are no rules governing how annotations should be unserialized 
+into objects, there might be cases where the reader cannot create the 
+expected object. By default, this will fail silently UNLESS it relates 
+to an Objectiphy annotation (in which case we know what the rules are, 
+so exceptions are exceptions). If any errors occur while in silent 
+mode, the `$lastErrorMessage` property will be populated, and a value 
+of `null` will be returned, but no exception will be thrown.
 
-To get it to throw exceptions for non-Objectiphy annotations, just set the `$throwExceptions` argument to true in the constructor when creating an AnnotationReader instance. To suppress exceptions for Objectiphy annotations, set the `$throwExceptionsObjectiphy` flag to false. 
+To get it to throw exceptions for non-Objectiphy annotations, just set 
+the `$throwExceptions` argument to true in the constructor when 
+creating an AnnotationReader instance. To suppress exceptions for 
+Objectiphy annotations, set the `$throwExceptionsObjectiphy` flag to 
+false. 
 
 ## Caching
 
-You can use any PSR-16 compatible caching mechanism to cache annotations. Using a cache can reduce the amount of processing needed to read annotations, which might be an important consideration in a scalable environment such as AWS, although there is still an overhead involved in reading from and writing to a cache, which could negate any performance benefits for simple use cases.
+You can use any PSR-16 compatible caching mechanism to cache 
+annotations. Using a cache can reduce the amount of processing needed 
+to read annotations, which might be an important consideration in a 
+scalable environment such as AWS, although there is still an overhead 
+involved in reading from and writing to a cache, which could negate any 
+performance benefits for simple use cases.
 
-To use a cache, simply instantiate a CachedAnnotationReader and pass an instance of your PSR-16 cache and a standard AnnotationReader to it. CachedAnnotationReader is a decorator for the standard AnnotationReader class, and implements the same AnnotationReaderInterface.
+To use a cache, simply instantiate a CachedAnnotationReader and pass 
+an instance of your PSR-16 cache and a standard AnnotationReader to it. 
+CachedAnnotationReader is a decorator for the standard AnnotationReader 
+class, and implements the same AnnotationReaderInterface.
 
 ## Credits
 
@@ -159,4 +211,5 @@ Developed by Russell Walker ([rwalker.php@gmail.com](mailto:rwalker.php@gmail.co
 
 ## Licence
 
-Objectiphy Annotations is released under the MIT licence - see enclosed licence file.
+Objectiphy Annotations is released under the MIT licence - see enclosed 
+licence file.
