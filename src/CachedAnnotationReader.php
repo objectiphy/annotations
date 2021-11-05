@@ -18,7 +18,7 @@ class CachedAnnotationReader implements AnnotationReaderInterface
 {
     private AnnotationReaderInterface $annotationReader;
     private \Psr\SimpleCache\CacheInterface $cache;
-    private string $keyPrefix = '';
+    private string $keyPrefix = 'an';
     private array $annotations = [];
 
     public function __construct(AnnotationReaderInterface $annotationReader, \Psr\SimpleCache\CacheInterface $cache)
@@ -47,7 +47,7 @@ class CachedAnnotationReader implements AnnotationReaderInterface
     public function setClassNameAttributes(array $classNameAttributes): void
     {
         $this->annotationReader->setClassNameAttributes($classNameAttributes);
-        $this->keyPrefix = substr(sha1(json_encode($classNameAttributes)), 0, 10);
+        $this->keyPrefix = 'an' . substr(sha1(json_encode($classNameAttributes)), 0, 10);
     }
 
     /**
@@ -75,7 +75,7 @@ class CachedAnnotationReader implements AnnotationReaderInterface
      * @throws AnnotationReaderException
      * @throws \ReflectionException
      */
-    public function getAnnotationFromClass(string $className, string $annotationName): object
+    public function getAnnotationFromClass(string $className, string $annotationName): ?object
     {
         $delegate = function() use ($className, $annotationName) {
             return $this->annotationReader->getAnnotationFromClass($className, $annotationName);
@@ -88,11 +88,10 @@ class CachedAnnotationReader implements AnnotationReaderInterface
      * @param string $className Name of class that has the property whose annotation we want.
      * @param string $propertyName Name of property that has (or might have) the annotation.
      * @param string $annotationName Name of the annotation.
-     * @return object
      * @throws AnnotationReaderException
      * @throws \ReflectionException
      */
-    public function getAnnotationFromProperty(string $className, string $propertyName, string $annotationName): object
+    public function getAnnotationFromProperty(string $className, string $propertyName, string $annotationName): ?object
     {
         $delegate = function() use ($className, $propertyName, $annotationName) {
             return $this->annotationReader->getAnnotationFromProperty($className, $propertyName, $annotationName);
@@ -105,11 +104,10 @@ class CachedAnnotationReader implements AnnotationReaderInterface
      * @param string $className Name of class that has the method whose annotation we want.
      * @param string $methodName Name of the method that has (or might have) the annotation.
      * @param string $annotationName Name of the annotation.
-     * @return object
      * @throws AnnotationReaderException
      * @throws \ReflectionException
      */
-    public function getAnnotationFromMethod(string $className, string $methodName, string $annotationName): object
+    public function getAnnotationFromMethod(string $className, string $methodName, string $annotationName): ?object
     {
         $delegate = function() use ($className, $methodName, $annotationName) {
             return $this->annotationReader->getAnnotationFromMethod($className, $methodName, $annotationName);
@@ -220,9 +218,8 @@ class CachedAnnotationReader implements AnnotationReaderInterface
         if ($loadedValue === null) {
             $key = $this->keyPrefix . sha1($className . $keyString);
             //Load from cache
-            if ($this->cache->has($key)) {
-                $loadedValue = $this->cache->get($key);
-            } else {
+            $loadedValue = $this->cache->get($key, '**notfound**');
+            if ($loadedValue === '**notfound**') {
                 //If not in cache, load from delegate and save in cache
                 $loadedValue = $delegate();
                 $this->cache->set($key, $loadedValue);

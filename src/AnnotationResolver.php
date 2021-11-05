@@ -377,13 +377,17 @@ class AnnotationResolver
             }
         }
 
-        //Wrap all the keys in quotes
-        foreach ($attrPositions as $index => $position) {
-            if (substr($value, $position + $index, 1) != '"') {
-                $value = substr($value, 0, $position + $index) . '"' . substr($value, $position + $index);
+        //In case of ({"key" = "value"}), replace curly brackets with square as they won't have been detected above
+        if (substr($value, 0, 3) == '({"' && substr($value, -3) == '"})') {
+            $value = '(' . substr($value, 2, strlen($value) - 4) . ')';
+        } else {
+            //Wrap all the keys in quotes
+            foreach ($attrPositions as $index => $position) {
+                if (substr($value, $position + $index, 1) != '"') {
+                    $value = substr($value, 0, $position + $index) . '"' . substr($value, $position + $index);
+                }
             }
         }
-
         if ($value) {
             //Try to make it valid JSON
             $jsonString = str_replace(

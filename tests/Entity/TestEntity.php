@@ -44,6 +44,8 @@ class TestEntity
      *     relationshipType="one_to_one"
      *
      * )
+     *
+     * @Objectiphy\Annotations\Tests\Annotations\OrderBy({"one"="two","three"="four"})
      */
     private ClassB $cb;
 

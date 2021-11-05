@@ -141,7 +141,7 @@ class AnnotationReaderTest extends TestCase
         $annotations = $this->object->getPropertyAnnotations($reflectionProperty);
         //@var ClassB
         //@ObjectiphyRelationship(childClassName="ClassB", relationshipType="one_to_one")
-        $this->assertSame(2, count($annotations));
+        $this->assertSame(3, count($annotations));
         $this->assertInstanceOf(AnnotationGeneric::class, $annotations[0]);
         $this->assertSame('some\ns\ClassB', $annotations[0]->type);
         $this->assertInstanceOf(Relationship::class, $annotations[1]);

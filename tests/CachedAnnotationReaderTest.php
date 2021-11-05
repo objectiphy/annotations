@@ -42,13 +42,14 @@ class CachedAnnotationReaderTest extends TestCase
         //Uncached
         $delegateResult = new \stdClass();
         $delegateResult->name = 'delegate';
-        $this->cache->expects($this->once())
-            ->method('has')
-            ->will($this->returnValue(false));
         $this->delegate->expects($this->once())
             ->method($methodName)
             ->with(...$args)
             ->will($this->returnValue($delegateResult));
+        $this->cache->expects($this->once())
+            ->method('get')
+            ->with($cacheKey)
+            ->will($this->returnValue('**notfound**'));
         $this->cache->expects($this->once())
             ->method('set')
             ->with($cacheKey);
@@ -66,9 +67,6 @@ class CachedAnnotationReaderTest extends TestCase
         if (!empty($classNameAttributes)) {
             $this->object->setClassNameAttributes($classNameAttributes);
         }
-        $this->cache->expects($this->once())
-            ->method('has')
-            ->will($this->returnValue(true));
         $this->cache->expects($this->once())
             ->method('get')
             ->with($cacheKey)
@@ -88,7 +86,7 @@ class CachedAnnotationReaderTest extends TestCase
 
     private function getData(bool $withClassNameAttributes = false)
     {
-        $keyPrefix = $withClassNameAttributes ? substr(sha1(json_encode(['childClassName'])), 0, 10) : '';
+        $keyPrefix = 'an' . ($withClassNameAttributes ? substr(sha1(json_encode(['childClassName'])), 0, 10) : '');
 
         $data = [
             [
