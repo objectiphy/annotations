@@ -438,15 +438,16 @@ class AnnotationResolver
                 $reflectionProperty = new \ReflectionProperty($object, $property);
                 if ($reflectionProperty->isPublic()) {
                     $object->{$property} = $propertyValue;
-                } else
+                } else {
                     $setter = 'set' . ucfirst($property);
                     if (method_exists($object, $setter)) {
-                    $reflectionMethod = new \ReflectionMethod($object, $setter);
-                    if ($reflectionMethod->isPublic()) {
-                        $object->{$setter}($propertyValue);
+                        $reflectionMethod = new \ReflectionMethod($object, $setter);
+                        if ($reflectionMethod->isPublic()) {
+                            $object->{$setter}($propertyValue);
+                        }
                     }
+                    $attributes[$property] = $propertyValue;
                 }
-                $attributes[$property] = $propertyValue;
             }
         } catch (\Exception $ex) {}
     }
