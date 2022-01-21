@@ -328,6 +328,8 @@ class AnnotationResolver
     private function extractPropertyValues(string $value): array
     {
         //Ugly, but we need to wrap all attribute names in quotes to json_decode into an array
+        $value = preg_replace('/",\s+"/u', '","', $value); //helps with parsing
+        
         $attrPositions = [];
         $attrStart = 0;
         $attrEnd = 0;
