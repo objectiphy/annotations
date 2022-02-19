@@ -9,6 +9,8 @@ namespace Objectiphy\Annotations\Tests\Annotations;
  * An alternative to the various Doctrine relationship annotations (if specified, this will take precedence over 
  * Doctrine).
  */
+#[Attribute(\Attribute::TARGET_PROPERTY)]
+#[Attribute(\Attribute::IS_REPEATABLE)] //Would not be repeatable irl in objectiphy, but ok for test
 class Relationship
 {
     const ONE_TO_ONE = 'one_to_one';

@@ -8,6 +8,7 @@ namespace Objectiphy\Annotations\Tests\Annotations;
 /**
  * An alternative to the Doctrine table annotation (if specified, this will take precedence over Doctrine).
  */
+#[Attribute(\Attribute::TARGET_CLASS)]
 class Table
 {
     /** @var string Name of database table */

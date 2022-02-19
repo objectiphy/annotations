@@ -10,6 +10,7 @@ namespace Objectiphy\Annotations\Tests\Annotations;
  * @package Objectiphy\Objectiphy
  * @author Russell Walker <rwalker.php@gmail.com>
  */
+#[Attribute(\Attribute::TARGET_PROPERTY)]
 class Column
 {
     /** @var string Name of column. */
