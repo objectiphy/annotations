@@ -24,10 +24,13 @@ class DocParser
      */
     public function getClassAnnotations(\ReflectionClass $reflectionClass): array
     {
-        $class = $reflectionClass->getName();
-        if (empty($this->classAnnotations[$class])) {
-            $docComment = $reflectionClass->getDocComment() ?: '';
-            $this->classAnnotations[$class] = $this->parseDocComment($docComment);
+        $this->classAnnotations[$class] = $reflectionClass->getAttributes();
+        if (!$this->classAnnotations[$class]) {
+            $class = $reflectionClass->getName();
+            if (empty($this->classAnnotations[$class])) {
+                $docComment = $reflectionClass->getDocComment() ?: '';
+                $this->classAnnotations[$class] = $this->parseDocComment($docComment);
+            }
         }
         
         return $this->classAnnotations[$class] ?? [];
@@ -44,10 +47,13 @@ class DocParser
         if (empty($this->propertyAnnotations[$class])) {
             $this->propertyAnnotations[$class] = [];
             foreach ($reflectionClass->getProperties() as $reflectionProperty) {
-                $docComment = $reflectionProperty->getDocComment() ?: '';
-                $property = $reflectionProperty->getName();
-                $parsedComment = $this->parseDocComment($docComment);
-                $this->propertyAnnotations[$class][$property] = $parsedComment;
+                $this->propertyAnnotations[$class][$property] = $reflectionProperty->getAttributes();
+                if (!$this->propertyAnnotations[$class][$property]) {
+                    $docComment = $reflectionProperty->getDocComment() ?: '';
+                    $property = $reflectionProperty->getName();
+                    $parsedComment = $this->parseDocComment($docComment);
+                    $this->propertyAnnotations[$class][$property] = $parsedComment;
+                }
             }
         }
         
@@ -65,10 +71,13 @@ class DocParser
         if (empty($this->methodAnnotations[$class])) {
             $this->methodAnnotations[$class] = [];
             foreach ($reflectionClass->getMethods() as $reflectionMethod) {
-                $docComment = $reflectionMethod->getDocComment() ?: '';
-                $method = $reflectionMethod->getName();
-                $parsedComment = $this->parseDocComment($docComment);
-                $this->methodAnnotations[$class][$method] = $parsedComment;
+                $this->methodAnnotations[$class][$method] = $reflectionMethod->getAttributes();
+                if (!$this->methodAnnotations[$class][$method]) {
+                    $docComment = $reflectionMethod->getDocComment() ?: '';
+                    $method = $reflectionMethod->getName();
+                    $parsedComment = $this->parseDocComment($docComment);
+                    $this->methodAnnotations[$class][$method] = $parsedComment;
+                }
             }
         }
 
