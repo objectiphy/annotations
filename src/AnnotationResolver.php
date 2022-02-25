@@ -14,7 +14,7 @@ class AnnotationResolver
 {
     public string $lastErrorMessage = '';
     public bool $objectiphyAnnotationError = false;
-    
+
     private ClassAliasFinder $aliasFinder;
     private array $classNameAttributes;
     private array $attributes;
@@ -78,14 +78,14 @@ class AnnotationResolver
      * @throws \ReflectionException
      */
     public function resolvePropertyAnnotation(
-        \ReflectionClass $reflectionClass, 
-        string $propertyName, 
-        string $name, 
+        \ReflectionClass $reflectionClass,
+        string $propertyName,
+        string $name,
         string $value,
         array $children = []
     ): object {
-        $reflectionProperty = $reflectionClass->hasProperty($propertyName) 
-            ? $reflectionClass->getProperty($propertyName) 
+        $reflectionProperty = $reflectionClass->hasProperty($propertyName)
+            ? $reflectionClass->getProperty($propertyName)
             : null;
         $this->initialise($reflectionClass, $reflectionProperty);
 
@@ -101,14 +101,14 @@ class AnnotationResolver
      * @throws \ReflectionException
      */
     public function resolveMethodAnnotation(
-        \ReflectionClass $reflectionClass, 
-        string $methodName, 
-        string $name, 
+        \ReflectionClass $reflectionClass,
+        string $methodName,
+        string $name,
         string $value,
         array $children = []
     ): object {
-        $reflectionMethod = $reflectionClass->hasMethod($methodName) 
-            ? $reflectionClass->getMethod($methodName) 
+        $reflectionMethod = $reflectionClass->hasMethod($methodName)
+            ? $reflectionClass->getMethod($methodName)
             : null;
         $this->initialise($reflectionClass, null, $reflectionMethod);
 
@@ -142,13 +142,13 @@ class AnnotationResolver
      * @param \ReflectionMethod|null $method
      */
     protected function initialise(
-        \ReflectionClass $class, 
-        ?\ReflectionProperty $property = null, 
+        \ReflectionClass $class,
+        ?\ReflectionProperty $property = null,
         ?\ReflectionMethod $method = null
     ): void {
-       $this->reflectionClass = $class;
-       $this->reflectionProperty = $property;
-       $this->reflectionMethod = $method;
+        $this->reflectionClass = $class;
+        $this->reflectionProperty = $property;
+        $this->reflectionMethod = $method;
     }
 
     /**
@@ -206,36 +206,30 @@ class AnnotationResolver
             $attributes =& $this->attributes[$className][$itemName][$annotationClass];
 
             //Instantiate
-            $annotationReflectionClass = new \ReflectionClass($annotationClass);
-            $constructor = $annotationReflectionClass->getConstructor();
-            if ($constructor && $constructor->getNumberOfRequiredParameters() > 0) {
-                $mandatoryArgs = $this->getMandatoryConstructorArgs(
-                    $annotationClass,
-                    $annotationReflectionClass,
-                    $attributes
-                );
-                //try {
+            try {
+                $annotationReflectionClass = new \ReflectionClass($annotationClass);
+                $constructor = $annotationReflectionClass->getConstructor();
+                if ($constructor && $constructor->getNumberOfRequiredParameters() > 0) {
+                    $mandatoryArgs = $this->getMandatoryConstructorArgs(
+                        $annotationClass,
+                        $annotationReflectionClass,
+                        $attributes
+                    );
                     $object = new $annotationClass(...$mandatoryArgs);
-//                } catch (\Throwable $ex) {
-//                    //Symfony serialization groups now insist on a 'value' key for each entry
-//                    if (strpos($annotationClass, 'Group') !== false
-//                        && is_array($mandatoryArgs[0] ?? null)
-//                        && array_key_first($mandatoryArgs[0]) == 0
-//                    ) {
-//                        $mandatoryArgs[0] = ['value' => $mandatoryArgs[0][0]];
-//                        $object = new $annotationClass(...$mandatoryArgs);
-//                    }
-//                }
-            } else {
-                try {
+                } else {
                     $object = new $annotationClass();
-                } catch (\Throwable $ex) {
-                    //If attributes consist of a single element of an indexed array, it is probably a Symfony annotation that requires a value key (eg. Assert\Type)
-                    if (count($attributes) == 1 && is_int(array_key_first($attributes))) {
-                        $object = new $annotationClass(['value' => reset($attributes)]);
-                    } else {
-                        $object = new $annotationClass($attributes);
-                    }
+                }
+            } catch (\Throwable $ex) {
+                // If attributes consist of a single element of an indexed array, it is probably a Symfony annotation
+                // that requires a value key (eg. Group or Assert\Type)
+                if (count($attributes) == 1 && (
+                        array_key_first($attributes) === 0 ||
+                        (is_array(reset($attributes)) && array_key_first(reset($attributes)) === 0)
+                    )
+                ) {
+                    $object = new $annotationClass(['value' => reset($attributes)]);
+                } else {
+                    $object = new $annotationClass($attributes);
                 }
             }
 
@@ -292,7 +286,7 @@ class AnnotationResolver
      */
     private function getMandatoryConstructorArgs(
         string $annotation,
-        \ReflectionClass $annotationReflectionClass, 
+        \ReflectionClass $annotationReflectionClass,
         array $attributes
     ): array {
         $mandatoryArgs = [];
