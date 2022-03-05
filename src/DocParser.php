@@ -24,6 +24,7 @@ class DocParser
      */
     public function getClassAnnotations(\ReflectionClass $reflectionClass): array
     {
+        $class = $reflectionClass->getName();
         $this->classAnnotations[$class] = $reflectionClass->getAttributes();
         if (!$this->classAnnotations[$class]) {
             $class = $reflectionClass->getName();
@@ -47,6 +48,7 @@ class DocParser
         if (empty($this->propertyAnnotations[$class])) {
             $this->propertyAnnotations[$class] = [];
             foreach ($reflectionClass->getProperties() as $reflectionProperty) {
+                $property = $reflectionProperty->getName();
                 $this->propertyAnnotations[$class][$property] = $reflectionProperty->getAttributes();
                 if (!$this->propertyAnnotations[$class][$property]) {
                     $docComment = $reflectionProperty->getDocComment() ?: '';
@@ -71,6 +73,7 @@ class DocParser
         if (empty($this->methodAnnotations[$class])) {
             $this->methodAnnotations[$class] = [];
             foreach ($reflectionClass->getMethods() as $reflectionMethod) {
+                $method = $reflectionMethod->getName();
                 $this->methodAnnotations[$class][$method] = $reflectionMethod->getAttributes();
                 if (!$this->methodAnnotations[$class][$method]) {
                     $docComment = $reflectionMethod->getDocComment() ?: '';
