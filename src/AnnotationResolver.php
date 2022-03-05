@@ -14,7 +14,7 @@ class AnnotationResolver
 {
     public string $lastErrorMessage = '';
     public bool $objectiphyAnnotationError = false;
-    
+
     private ClassAliasFinder $aliasFinder;
     private array $classNameAttributes;
     private array $attributes;
@@ -78,14 +78,14 @@ class AnnotationResolver
      * @throws \ReflectionException
      */
     public function resolvePropertyAnnotation(
-        \ReflectionClass $reflectionClass, 
-        string $propertyName, 
-        string $name, 
+        \ReflectionClass $reflectionClass,
+        string $propertyName,
+        string $name,
         string $value,
         array $children = []
     ): object {
-        $reflectionProperty = $reflectionClass->hasProperty($propertyName) 
-            ? $reflectionClass->getProperty($propertyName) 
+        $reflectionProperty = $reflectionClass->hasProperty($propertyName)
+            ? $reflectionClass->getProperty($propertyName)
             : null;
         $this->initialise($reflectionClass, $reflectionProperty);
 
@@ -101,14 +101,14 @@ class AnnotationResolver
      * @throws \ReflectionException
      */
     public function resolveMethodAnnotation(
-        \ReflectionClass $reflectionClass, 
-        string $methodName, 
-        string $name, 
+        \ReflectionClass $reflectionClass,
+        string $methodName,
+        string $name,
         string $value,
         array $children = []
     ): object {
-        $reflectionMethod = $reflectionClass->hasMethod($methodName) 
-            ? $reflectionClass->getMethod($methodName) 
+        $reflectionMethod = $reflectionClass->hasMethod($methodName)
+            ? $reflectionClass->getMethod($methodName)
             : null;
         $this->initialise($reflectionClass, null, $reflectionMethod);
 
@@ -142,13 +142,13 @@ class AnnotationResolver
      * @param \ReflectionMethod|null $method
      */
     protected function initialise(
-        \ReflectionClass $class, 
-        ?\ReflectionProperty $property = null, 
+        \ReflectionClass $class,
+        ?\ReflectionProperty $property = null,
         ?\ReflectionMethod $method = null
     ): void {
-       $this->reflectionClass = $class;
-       $this->reflectionProperty = $property;
-       $this->reflectionMethod = $method;
+        $this->reflectionClass = $class;
+        $this->reflectionProperty = $property;
+        $this->reflectionMethod = $method;
     }
 
     /**
@@ -206,28 +206,31 @@ class AnnotationResolver
             $attributes =& $this->attributes[$className][$itemName][$annotationClass];
 
             //Instantiate
-            $annotationReflectionClass = new \ReflectionClass($annotationClass);
-            $constructor = $annotationReflectionClass->getConstructor();
-            if ($constructor && $constructor->getNumberOfRequiredParameters() > 0) {
-                $mandatoryArgs = $this->getMandatoryConstructorArgs(
-                    $annotationClass,
-                    $annotationReflectionClass,
-                    $attributes
-                );
-                try {
+            try {
+                $annotationReflectionClass = new \ReflectionClass($annotationClass);
+                $constructor = $annotationReflectionClass->getConstructor();
+                if ($constructor && $constructor->getNumberOfRequiredParameters() > 0) {
+                    $mandatoryArgs = $this->getMandatoryConstructorArgs(
+                        $annotationClass,
+                        $annotationReflectionClass,
+                        $attributes
+                    );
                     $object = new $annotationClass(...$mandatoryArgs);
-                } catch (\Throwable $ex) {
-                    //Symfony serialization groups now insist on a 'value' key for each entry
-                    if (strpos($annotationClass, 'Group') !== false
-                        && is_array($mandatoryArgs[0] ?? null)
-                        && array_key_first($mandatoryArgs[0]) == 0
-                    ) {
-                        $mandatoryArgs[0] = ['value' => $mandatoryArgs[0][0]];
-                        $object = new $annotationClass(...$mandatoryArgs);
-                    }
+                } else {
+                    $object = new $annotationClass();
                 }
-            } else {
-                $object = new $annotationClass();
+            } catch (\Throwable $ex) {
+                // If attributes consist of a single element of an indexed array, it is probably a Symfony annotation
+                // that requires a value key (eg. Group or Assert\Type)
+                if (count($attributes) == 1 && (
+                        array_key_first($attributes) === 0 ||
+                        (is_array(reset($attributes)) && array_key_first(reset($attributes)) === 0)
+                    )
+                ) {
+                    $object = new $annotationClass(['value' => reset($attributes)]);
+                } else {
+                    $object = new $annotationClass($attributes);
+                }
             }
 
             //Set properties
@@ -283,7 +286,7 @@ class AnnotationResolver
      */
     private function getMandatoryConstructorArgs(
         string $annotation,
-        \ReflectionClass $annotationReflectionClass, 
+        \ReflectionClass $annotationReflectionClass,
         array $attributes
     ): array {
         $mandatoryArgs = [];
@@ -329,94 +332,99 @@ class AnnotationResolver
     {
         //Ugly, but we need to wrap all attribute names in quotes to json_decode into an array
         $value = preg_replace('/",\s+"/u', '","', $value); //helps with parsing
-        
-        $attrPositions = [];
-        $attrStart = 0;
-        $attrEnd = 0;
-        $previousNonSpace = '';
-        $nextNonSpace = '';
-        $openCurly = null;
-        foreach (str_split($value) as $i => $char) {
-            switch ($char) {
-                case '(':
-                case ',':
-                    for ($j = $i; $j <= strlen($value); $j++) {
-                        $j++;
-                        $nextChar = substr($value, $j, 1);
-                        if (!ctype_space($nextChar)) {
-                            $nextNonSpace = $nextChar;
-                            break;
-                        }
-                    }
-                    if ($nextNonSpace != '"') { //Already wrapped in quotes, don't do it again
-                        $attrStart = $i + 1; //We will trim any whitespace later
-                    }
-                    break;
-                case '=':
-                    if ($attrStart) {
-                        if ($previousNonSpace != '"') { //Already wrapped in quotes, don't do it again
-                            $attrEnd = $i - 1;
-                            $attrPositions[] = $attrStart;
-                            $attrPositions[] = $attrEnd + 1;
-                            $attrStart = 0;
-                            $attrEnd = 0;
-                        }
-                    }
-                    $openCurly = null;
-                    break;
-                case '{':
-                    $openCurly = $i;
-                    break;
-                case '}':
-                    if ($openCurly !== null) {
-                        //Replace last openCurly and this one with square brackets
-                        $value = substr($value, 0, $openCurly)
-                            . '[' . substr($value, $openCurly + 1, ($i - $openCurly) - 1) . ']'
-                            . substr($value, $i + 1);
-                    }
-                    $openCurly = null;
-                    break;
-            }
-        }
 
-        //In case of ({"key" = "value"}), replace curly brackets with square as they won't have been detected above
-        if (substr($value, 0, 3) == '({"' && substr($value, -3) == '"})') {
-            $value = '(' . substr($value, 2, strlen($value) - 4) . ')';
+        //In case of ("value"), make it an indexed array with a single string value?
+        if (substr_count($value, '"') == 2 && substr($value, 0, 2) == '("' && substr($value, -2) == '")') {
+            $cleanArray = [substr($value, 2, strlen($value) - 4)];
         } else {
-            //Wrap all the keys in quotes
-            foreach ($attrPositions as $index => $position) {
-                if (substr($value, $position + $index, 1) != '"') {
-                    $value = substr($value, 0, $position + $index) . '"' . substr($value, $position + $index);
+            $attrPositions = [];
+            $attrStart = 0;
+            $attrEnd = 0;
+            $previousNonSpace = '';
+            $nextNonSpace = '';
+            $openCurly = null;
+            foreach (str_split($value) as $i => $char) {
+                switch ($char) {
+                    case '(':
+                    case ',':
+                        for ($j = $i; $j <= strlen($value); $j++) {
+                            $j++;
+                            $nextChar = substr($value, $j, 1);
+                            if (!ctype_space($nextChar)) {
+                                $nextNonSpace = $nextChar;
+                                break;
+                            }
+                        }
+                        if ($nextNonSpace != '"') { //Already wrapped in quotes, don't do it again
+                            $attrStart = $i + 1; //We will trim any whitespace later
+                        }
+                        break;
+                    case '=':
+                        if ($attrStart) {
+                            if ($previousNonSpace != '"') { //Already wrapped in quotes, don't do it again
+                                $attrEnd = $i - 1;
+                                $attrPositions[] = $attrStart;
+                                $attrPositions[] = $attrEnd + 1;
+                                $attrStart = 0;
+                                $attrEnd = 0;
+                            }
+                        }
+                        $openCurly = null;
+                        break;
+                    case '{':
+                        $openCurly = $i;
+                        break;
+                    case '}':
+                        if ($openCurly !== null) {
+                            //Replace last openCurly and this one with square brackets
+                            $value = substr($value, 0, $openCurly)
+                                . '[' . substr($value, $openCurly + 1, ($i - $openCurly) - 1) . ']'
+                                . substr($value, $i + 1);
+                        }
+                        $openCurly = null;
+                        break;
                 }
             }
-        }
-        if ($value) {
-            //Try to make it valid JSON
-            $jsonString = str_replace(
-                ['(', ')', '=', '\\', "\t", "\r", "\n"],
-                ['{', '}', ':', '\\\\', '', '', ''],
-                $value
-            );
-            if (strpos($jsonString, '{[') !== false) {
-                $jsonString = str_replace(
-                    '{[',
-                    '{"":[',
-                    $jsonString
-                );
-            }
-            $array = json_decode($jsonString, true, 512, \JSON_INVALID_UTF8_IGNORE | \JSON_BIGINT_AS_STRING);
-            if ($array) {
-                //Now trim any whitespace from keys (values should be ok)
-                $trimmedKeys = array_map('trim', array_keys($array));
-                $cleanArray = array_combine($trimmedKeys, array_values($array));
-                foreach ($cleanArray as $cleanKey => $cleanValue) { //and the next level (not worth going any further though)
-                    if (is_array($cleanValue)) {
-                        $trimmedCleanKeys = array_map('trim', array_keys($cleanValue));
-                        $cleanArray[$cleanKey] = array_combine($trimmedCleanKeys, array_values($cleanValue));
+
+            //In case of ({"key" = "value"}), replace curly brackets with square as they won't have been detected above
+            if (substr($value, 0, 3) == '({"' && substr($value, -3) == '"})') {
+                $value = '(' . substr($value, 2, strlen($value) - 4) . ')';
+            } else {
+                //Wrap all the keys in quotes
+                foreach ($attrPositions as $index => $position) {
+                    if (substr($value, $position + $index, 1) != '"') {
+                        $value = substr($value, 0, $position + $index) . '"' . substr($value, $position + $index);
                     }
                 }
-            } elseif (json_last_error() != \JSON_ERROR_NONE) {
-                throw new AnnotationReaderException('Could not resolve annotation: ' . json_last_error_msg());
+            }
+            if ($value) {
+                //Try to make it valid JSON
+                $jsonString = str_replace(
+                    ['(', ')', '=', '\\', "\t", "\r", "\n"],
+                    ['{', '}', ':', '\\\\', '', '', ''],
+                    $value
+                );
+                if (strpos($jsonString, '{[') !== false) {
+                    $jsonString = str_replace(
+                        '{[',
+                        '{"":[',
+                        $jsonString
+                    );
+                }
+                $array = json_decode($jsonString, true, 512, \JSON_INVALID_UTF8_IGNORE | \JSON_BIGINT_AS_STRING);
+                if ($array) {
+                    //Now trim any whitespace from keys (values should be ok)
+                    $trimmedKeys = array_map('trim', array_keys($array));
+                    $cleanArray = array_combine($trimmedKeys, array_values($array));
+                    foreach ($cleanArray as $cleanKey => $cleanValue) { //and the next level (not worth going any further though)
+                        if (is_array($cleanValue)) {
+                            $trimmedCleanKeys = array_map('trim', array_keys($cleanValue));
+                            $cleanArray[$cleanKey] = array_combine($trimmedCleanKeys, array_values($cleanValue));
+                        }
+                    }
+                } elseif (json_last_error() != \JSON_ERROR_NONE) {
+                    throw new AnnotationReaderException('Could not resolve annotation: ' . json_last_error_msg());
+                }
             }
         }
 
