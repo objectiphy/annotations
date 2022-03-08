@@ -10,7 +10,7 @@ class AttributeAnotherTestEntity
 {
     #[ObjectiphyRelationship(relationshipType: 'one_to_many', joinColumn: 'join_col')]
     #[ObjectiphyRelationship(relationshipType: 'may_to_many', joinColumn: 'nonsense')]
-    #[Objectiphy\Annotations\Tests\Annotations\Relationship(relationshipType: 'many_to_one', joinColumnn: 'wth')]
+    #[\Objectiphy\Annotations\Tests\Annotations\Relationship(relationshipType: 'many_to_one', joinColumnn: 'wth')]
     public function methodWithMultipleCustomAnnotations()
     {
 

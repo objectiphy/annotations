@@ -17,6 +17,13 @@ class DocParser
     private array $propertyAnnotations;
     private array $methodAnnotations;
 
+    private bool $checkAttributes;
+
+    public function __construct()
+    {
+        $this->checkAttributes = \PHP_MAJOR_VERSION >= 8;
+    }
+
     /**
      * Parse doc comment for class annotations
      * @param \ReflectionClass $reflectionClass
@@ -25,7 +32,12 @@ class DocParser
     public function getClassAnnotations(\ReflectionClass $reflectionClass): array
     {
         $class = $reflectionClass->getName();
-        $this->classAnnotations[$class] = $reflectionClass->getAttributes();
+        $ra = $reflectionClass->getAttributes();
+        if (isset($ra[0])) {
+            $ra1 = $ra[0]->newInstance();
+            die(print_r($ra1, true));
+        }
+        $this->classAnnotations[$class] = $this->checkAttributes ? $reflectionClass->getAttributes() : null;
         if (!$this->classAnnotations[$class]) {
             $class = $reflectionClass->getName();
             if (empty($this->classAnnotations[$class])) {
@@ -49,7 +61,7 @@ class DocParser
             $this->propertyAnnotations[$class] = [];
             foreach ($reflectionClass->getProperties() as $reflectionProperty) {
                 $property = $reflectionProperty->getName();
-                $this->propertyAnnotations[$class][$property] = $reflectionProperty->getAttributes();
+                $this->propertyAnnotations[$class][$property] = $this->checkAttributes ? $reflectionProperty->getAttributes() : null;
                 if (!$this->propertyAnnotations[$class][$property]) {
                     $docComment = $reflectionProperty->getDocComment() ?: '';
                     $property = $reflectionProperty->getName();
@@ -74,7 +86,7 @@ class DocParser
             $this->methodAnnotations[$class] = [];
             foreach ($reflectionClass->getMethods() as $reflectionMethod) {
                 $method = $reflectionMethod->getName();
-                $this->methodAnnotations[$class][$method] = $reflectionMethod->getAttributes();
+                $this->methodAnnotations[$class][$method] = $this->checkAttributes ? $reflectionMethod->getAttributes() : null;
                 if (!$this->methodAnnotations[$class][$method]) {
                     $docComment = $reflectionMethod->getDocComment() ?: '';
                     $method = $reflectionMethod->getName();

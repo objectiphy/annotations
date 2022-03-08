@@ -25,7 +25,7 @@ use some\ns\
     ClassB, ClassC as C
 };
 
-#[Objectiphy\Annotations\Tests\Annotations\Table(name: 'test')]
+#[\Objectiphy\Annotations\Tests\Annotations\Table(name: 'test')]
 class AttributeTestEntity
 {
     /**
@@ -38,7 +38,7 @@ class AttributeTestEntity
      * @var ClassB
      */
     #[ObjectiphyRelationship(childClassName: ClassB::class, relationshipType: 'one_to_one')]
-    #[Objectiphy\Annotations\Tests\Annotations\OrderBy(['one' => 'two', 'three' => 'four'])]
+    #[\Objectiphy\Annotations\Tests\Annotations\OrderBy(['one' => 'two', 'three' => 'four'])]
     private ClassB $cb;
 
     #[attrvar('int', '$someProperty', 'A property!')]

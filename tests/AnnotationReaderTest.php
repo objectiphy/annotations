@@ -12,6 +12,7 @@ use Objectiphy\Annotations\CachedAnnotationReader;
 use Objectiphy\Annotations\PsrSimpleCacheInterface;
 use Objectiphy\Annotations\Tests\Annotations\Column;
 use Objectiphy\Annotations\Tests\Entity\AnotherTestEntity;
+use Objectiphy\Annotations\Tests\Entity\AttributeTestEntity;
 use Objectiphy\Annotations\Tests\Entity\TestEntity;
 use Objectiphy\Annotations\Tests\Annotations\Relationship;
 use Objectiphy\Annotations\Tests\Annotations\Table;
@@ -31,9 +32,15 @@ class AnnotationReaderTest extends TestCase
 
     public function testGetAnnotationFromClass()
     {
-        $table = $this->object->getAnnotationFromClass(TestEntity::class, Table::class);
-        $this->assertInstanceOf(Table::class, $table);
-        $this->assertSame('test', $table->name);
+        $classes = [TestEntity::class];
+        if (\PHP_MAJOR_VERSION >= 8) {
+            $classes[] = AttributeTestEntity::class;
+        }
+        foreach ($classes as $class) {
+            $table = $this->object->getAnnotationFromClass($class, Table::class);
+            $this->assertInstanceOf(Table::class, $table);
+            $this->assertSame('test', $table->name);
+        }
 
         $this->object->setThrowExceptions(false);
         $error = $this->object->getAnnotationFromClass('MadeupClass', Table::class);
