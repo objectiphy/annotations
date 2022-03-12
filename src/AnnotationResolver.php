@@ -441,6 +441,9 @@ class AnnotationResolver
     private function setPropertyOnObject(object $object, string $property, $propertyValue, array &$attributes): void
     {
         try {
+            if (is_string($propertyValue) && strpos($propertyValue, ':') !== false) {
+                $propertyValue = str_replace(':', '=', $propertyValue);
+            }
             if (property_exists($object, $property)) {
                 if (in_array(strtolower($property), $this->classNameAttributes)) {
                     $propertyValue = $this->aliasFinder->findClassForAlias($this->reflectionClass, $propertyValue) ?: $propertyValue;
