@@ -13,9 +13,9 @@ namespace Objectiphy\Annotations;
 class DocParser
 {
     //Local cache
-    private array $classAnnotations;
-    private array $propertyAnnotations;
-    private array $methodAnnotations;
+    private array $classAnnotations = [];
+    private array $propertyAnnotations = [];
+    private array $methodAnnotations = [];
 
     private bool $checkAttributes;
 
@@ -32,13 +32,14 @@ class DocParser
     public function getClassAnnotations(\ReflectionClass $reflectionClass): array
     {
         $class = $reflectionClass->getName();
-        $ra = $reflectionClass->getAttributes();
-        if (isset($ra[0])) {
-            $ra1 = $ra[0]->newInstance();
-            die(print_r($ra1, true));
+        $attributesFound = false;
+        if ($this->checkAttributes) {
+            foreach ($reflectionClass->getAttributes() as $reflectionAttribute) {
+                $this->classAnnotations[$class][] = $reflectionAttribute->newInstance();
+                $attributesFound = true;
+            }
         }
-        $this->classAnnotations[$class] = $this->checkAttributes ? $reflectionClass->getAttributes() : null;
-        if (!$this->classAnnotations[$class]) {
+        if (!$attributesFound) {
             $class = $reflectionClass->getName();
             if (empty($this->classAnnotations[$class])) {
                 $docComment = $reflectionClass->getDocComment() ?: '';

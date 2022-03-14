@@ -5,14 +5,18 @@ declare(strict_types=1);
 //This file has been copied from an early version of Objectiphy, just as an example to use in unit tests
 namespace Objectiphy\Annotations\Tests\Annotations;
 
+use Objectiphy\Annotations\AttributeTrait;
+
 /**
  * Mapping information to describe how the value of a property is stored and retrieved from a database column.
  * @package Objectiphy\Objectiphy
  * @author Russell Walker <rwalker.php@gmail.com>
  */
-#[Attribute(\Attribute::TARGET_PROPERTY)]
+#[\Attribute(\Attribute::TARGET_PROPERTY)]
 class Column
 {
+    use AttributeTrait;
+    
     /** @var string Name of column. */
     public string $name = '';
     
