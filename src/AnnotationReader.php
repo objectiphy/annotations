@@ -347,17 +347,17 @@ class AnnotationReader implements AnnotationReaderInterface
             $this->resolvedClassAnnotations[$this->class] = [];
             $annotations = $this->docParser->getClassAnnotations($this->reflectionClass);
             //Reverse array for consistency with property and method annotations, even though we don't support kids on a class annotation
-            foreach (array_reverse($annotations ?? []) as $index => $nameValuePair) {
-                foreach ($nameValuePair as $name => $value) {
-                    if ($value instanceof \ReflectionnAttribute) {
-                        $name = $value->getName();
-                        $resolved = $value->newInstance() ?: $value->getArguments();
-                    } else {
+            foreach (array_reverse($annotations ?? []) as $index => $classAnnotation) {
+                if ($classAnnotation instanceof \ReflectionAttribute) { //Attribute already resolved
+                    $name = $classAnnotation->getName();
+                    $resolved = $classAnnotation->newInstance() ?: $classAnnotation->getArguments();
+                } else {
+                    foreach ($classAnnotation as $name => $value) {
                         $resolved = $this->resolver->resolveClassAnnotation($this->reflectionClass, $name, $value);
                         $this->handleResolverErrors();
                     }
-                    $this->addResolvedToIndex($this->resolvedClassAnnotations[$this->class], $name, $resolved);
                 }
+                $this->addResolvedToIndex($this->resolvedClassAnnotations[$this->class], $name, $resolved);
             }
         }
 
@@ -412,12 +412,18 @@ class AnnotationReader implements AnnotationReaderInterface
             if (!empty($annotations[$key])) {
                 //Reverse array to resolve children first
                 $children = [];
-                foreach (array_reverse($annotations[$key]) as $nameValuePair) {
-                    foreach ($nameValuePair as $name => $value) {
-                        if ($value instanceof \ReflectionnAttribute) {
-                            $name = $value->getName();
-                            $resolved = $value->newInstance() ?: $value->getArguments();
+                foreach (array_reverse($annotations[$key]) as $annotation) {
+                    if ($annotation instanceof \ReflectionAttribute) {
+                        $name = $annotation->getName();
+                        if (class_exists($name)) {
+                            $resolved = $annotation->newInstance();
                         } else {
+                            //Create generic with $annnotation->getAruments() - not sure what to do here! just json_encode for now
+                            $resolved = $this->resolver->populateGenericAnnotation($name, json_encode($annotation->getArguments()));
+                        }
+                        $resolved = class_exists($name) ? $annotation->newInstance() : $annotation->getArguments();
+                    } else {
+                        foreach ($annotation as $name => $value) {
                             if (substr($name, 0, 7) == '_child_') {
                                 $children[strtok($name, ':')] = $this->resolver->{'resolve' . ucfirst($type) . 'Annotation'}(
                                     $this->reflectionClass,
@@ -436,13 +442,13 @@ class AnnotationReader implements AnnotationReaderInterface
                             }
                             $this->handleResolverErrors();
                         }
-                        if (!empty($resolved)) {
-                            $this->addResolvedToIndex(
-                                $annotationArray[$key],
-                                $name,
-                                $resolved
-                            );
-                        }
+                    }
+                    if (!empty($resolved)) {
+                        $this->addResolvedToIndex(
+                            $annotationArray[$key],
+                            $name,
+                            $resolved
+                        );
                     }
                 }
             }

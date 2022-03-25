@@ -13,6 +13,7 @@ use Objectiphy\Annotations\PsrSimpleCacheInterface;
 use Objectiphy\Annotations\Tests\Annotations\Column;
 use Objectiphy\Annotations\Tests\Entity\AnotherTestEntity;
 use Objectiphy\Annotations\Tests\Entity\AttributeTestEntity;
+use Objectiphy\Annotations\Tests\Entity\AttributeTestEntitySubClass;
 use Objectiphy\Annotations\Tests\Entity\TestEntity;
 use Objectiphy\Annotations\Tests\Annotations\Relationship;
 use Objectiphy\Annotations\Tests\Annotations\Table;
@@ -54,38 +55,56 @@ class AnnotationReaderTest extends TestCase
 
     public function testGetAnnotationFromProperty()
     {
-        $relationship = $this->object->getAnnotationFromProperty(TestEntity::class, 'cb', Relationship::class);
-        $this->assertInstanceOf(Relationship::class, $relationship);
-        $this->assertSame('one_to_one', $relationship->relationshipType);
-        $this->assertSame('some\ns\ClassB', $relationship->getChildClassName());
+        $classes = [TestEntity::class];
+        if (\PHP_MAJOR_VERSION >= 8) {
+            $classes[] = AttributeTestEntity::class;
+        }
+        foreach ($classes as $class) {
+            $relationship = $this->object->getAnnotationFromProperty($class, 'cb', Relationship::class);
+            $this->assertInstanceOf(Relationship::class, $relationship);
+            $this->assertSame('one_to_one', $relationship->relationshipType);
+            $this->assertSame('some\ns\ClassB', $relationship->getChildClassName());
 
-        //Unqualified
-        $column = $this->object->getAnnotationFromProperty(TestEntity::class, 'unqualifiedAnnotation', Column::class);
-        $this->assertInstanceOf(Column::class, $column);
-        $this->assertSame('int', $column->type);
-        $this->assertSame('some_column_or_other', $column->name);
-        
-        //Sub class, referring to a property on the super class
-        $this->object->setClassNameAttributes([]);
-        $relationship2 = $this->object->getAnnotationFromProperty(TestEntitySubClass::class, 'cb', Relationship::class);
-        $this->assertSame('ClassB', $relationship2->getChildClassName());
+            //Unqualified
+            $column = $this->object->getAnnotationFromProperty($class, 'unqualifiedAnnotation', Column::class);
+            $this->assertInstanceOf(Column::class, $column);
+            $this->assertSame('int', $column->type);
+            $this->assertSame('some_column_or_other', $column->name);
 
-        //Generic on the sub class
-        $var = $this->object->getAnnotationFromProperty(TestEntitySubClass::class, 'meh', 'var');
-        $this->assertSame(AnnotationGeneric::class, get_class($var));
-        $this->assertSame('int', $var->type);
+            //Property does not exist
+            $this->object->setThrowExceptions(false);
+            $error = $this->object->getAnnotationFromProperty($class, 'madupProperty', Relationship::class);
+            $this->assertNull($error);
+            $this->assertStringContainsString('property', $this->object->lastErrorMessage);
+        }
 
-        //Property does not exist
-        $this->object->setThrowExceptions(false);
-        $error = $this->object->getAnnotationFromProperty(TestEntity::class, 'madupProperty', Relationship::class);
-        $this->assertNull($error);
-        $this->assertStringContainsString('property', $this->object->lastErrorMessage);
+        $classes = [TestEntitySubClass::class];
+        if (\PHP_MAJOR_VERSION >= 8) {
+            $classes[] = AttributeTestEntitySubClass::class;
+        }
+        foreach ($classes as $class) {
+            //Sub class, referring to a property on the super class
+            $this->object->setClassNameAttributes([]);
+            $relationship2 = $this->object->getAnnotationFromProperty($class, 'cb', Relationship::class);
+            $this->assertSame('ClassB', $relationship2->getChildClassName());
 
-        //Serialization groups present
-        $column = $this->object->getAnnotationFromProperty(TestNormalEntity::class, 'product', Column::class);
-        $this->assertEquals('product', $column->name);
-        $group = $this->object->getAnnotationFromProperty(TestNormalEntity::class, 'product', Groups::class);
-        $this->assertEquals([0 => 'Default'], $group->getGroups());
+            //Generic on the sub class
+            $var = $this->object->getAnnotationFromProperty($class, 'meh', 'var');
+            $this->assertSame(AnnotationGeneric::class, get_class($var));
+            $this->assertSame('int', $var->type);
+        }
+
+        $classes = [TestNormalEntity::class];
+        if (\PHP_MAJOR_VERSION >= 8) {
+            $classes[] = AttributeTestNormalEntity::class;
+        }
+        foreach ($classes as $class) {
+            //Serialization groups present
+            $column = $this->object->getAnnotationFromProperty($class, 'product', Column::class);
+            $this->assertEquals('product', $column->name);
+            $group = $this->object->getAnnotationFromProperty($class, 'product', Groups::class);
+            $this->assertEquals([0 => 'Default'], $group->getGroups());
+        }
     }
 
     public function testGetAnnotationFromMethod()

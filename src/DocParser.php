@@ -35,7 +35,7 @@ class DocParser
         $attributesFound = false;
         if ($this->checkAttributes) {
             foreach ($reflectionClass->getAttributes() as $reflectionAttribute) {
-                $this->classAnnotations[$class][] = $reflectionAttribute->newInstance();
+                $this->classAnnotations[$class][] = $reflectionAttribute;
                 $attributesFound = true;
             }
         }

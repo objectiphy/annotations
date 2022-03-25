@@ -257,7 +257,7 @@ class AnnotationResolver
      * @param string $annotationValue
      * @return AnnotationGeneric
      */
-    private function populateGenericAnnotation(
+    public function populateGenericAnnotation(
         string $annotationName,
         string $annotationValue
     ): AnnotationGeneric {
