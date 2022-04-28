@@ -87,9 +87,9 @@ namespace MyNamespace\Annotations;
 
 class MyAnnotation
 {
-    private string $name;
     public string $childClassName;
     protected int $value = 100;
+    private string $name;
     
     public function __construct(string $name)
     {
