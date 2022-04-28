@@ -105,6 +105,16 @@ class MyAnnotation
     {
         return $this->value;
     }
+    
+    public function setName(string $name): void
+    {
+        $this->name = $name;
+    }
+    
+    public function getName(): string
+    {
+        return $this->name;
+    }
 }
 ```
 
@@ -140,9 +150,9 @@ $annotationReader = new AnnotationReader();
 $annotationReader->setClassNameAttributes(['childClassName']);
 $annotation = $annotationReader->getAnnotationFromProperty(MyEntity2::class, 'childClassName', MyAnnotation::class);
 
-echo "Name: " . $annotation->name . "\n";
+echo "Name: " . $annotation->getName() . "\n";
 echo "Child Class Name: " . $annotation->childClassName . "\n";
-echo "Value: " . $annotation->value;
+echo "Value: " . $annotation->getValue();
 ```
 
 ...which would output the following (note that because we told it that 
