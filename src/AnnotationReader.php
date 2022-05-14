@@ -418,10 +418,9 @@ class AnnotationReader implements AnnotationReaderInterface
                         if (class_exists($name)) {
                             $resolved = $annotation->newInstance();
                         } else {
-                            //Create generic with $annnotation->getAruments() - not sure what to do here! just json_encode for now
-                            $resolved = $this->resolver->populateGenericAnnotation($name, json_encode($annotation->getArguments()));
+                            //Create generic with $annnotation->getAruments()
+                            $resolved = $this->resolver->populateGenericAnnotation($name, implode(' ', $annotation->getArguments()));
                         }
-                        $resolved = class_exists($name) ? $annotation->newInstance() : $annotation->getArguments();
                     } else {
                         foreach ($annotation as $name => $value) {
                             if (substr($name, 0, 7) == '_child_') {
@@ -570,7 +569,7 @@ class AnnotationReader implements AnnotationReaderInterface
      */
     private function getShortClassName(string $fullClassName): string
     {
-        return substr(strrchr($fullClassName, '\\'), 1) ?? '';
+        return substr(strrchr($fullClassName, '\\') ?: '', 1) ?? '';
     }
 
     /**

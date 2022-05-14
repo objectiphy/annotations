@@ -29,9 +29,9 @@ use some\ns\
 class AttributeTestEntity
 {
     /**
-     * This will not resolve to an attribute/annnotation class as there is no use statement
+     * We cannot have unqualified attributes, so just qualify it for unit test purposes
      */
-    #[Column(type: 'int', name: 'some_column_or_other')]
+    #[\Objectiphy\Annotations\Tests\Annotations\Column(type: 'int', name: 'some_column_or_other')]
     protected $unqualifiedAnnotation;
 
     /**

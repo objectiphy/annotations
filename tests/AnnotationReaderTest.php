@@ -14,6 +14,7 @@ use Objectiphy\Annotations\Tests\Annotations\Column;
 use Objectiphy\Annotations\Tests\Entity\AnotherTestEntity;
 use Objectiphy\Annotations\Tests\Entity\AttributeTestEntity;
 use Objectiphy\Annotations\Tests\Entity\AttributeTestEntitySubClass;
+use Objectiphy\Annotations\Tests\Entity\AttributeTestNormalEntity;
 use Objectiphy\Annotations\Tests\Entity\TestEntity;
 use Objectiphy\Annotations\Tests\Annotations\Relationship;
 use Objectiphy\Annotations\Tests\Annotations\Table;
@@ -89,7 +90,8 @@ class AnnotationReaderTest extends TestCase
             $this->assertSame('ClassB', $relationship2->getChildClassName());
 
             //Generic on the sub class
-            $var = $this->object->getAnnotationFromProperty($class, 'meh', 'var');
+            $attrName = $class == AttributeTestEntitySubClass::class ? 'Objectiphy\Annotations\Tests\Entity\attr_var' : 'var';
+            $var = $this->object->getAnnotationFromProperty($class, 'meh', $attrName);
             $this->assertSame(AnnotationGeneric::class, get_class($var));
             $this->assertSame('int', $var->type);
         }
