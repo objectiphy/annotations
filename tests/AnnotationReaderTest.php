@@ -128,6 +128,16 @@ class AnnotationReaderTest extends TestCase
         $table = $this->object->getClassAnnotation(new \ReflectionClass(TestEntity::class), Table::class);
         $this->assertInstanceOf(Table::class, $table);
         $this->assertSame('test', $table->name);
+        $attributesRead = $this->object->getAttributesRead(TestEntity::class, 'c', Table::class);
+        $this->assertArrayHasKey('name', $attributesRead);
+        $this->assertSame('test', $attributesRead['name']);
+
+        $table = $this->object->getClassAnnotation(new \ReflectionClass(AttributeTestEntity::class), Table::class);
+        $this->assertInstanceOf(Table::class, $table);
+        $this->assertSame('test', $table->name);
+        $attributesRead = $this->object->getAttributesRead(AttributeTestEntity::class, 'c', Table::class);
+        $this->assertArrayHasKey('name', $attributesRead);
+        $this->assertSame('test', $attributesRead['name']);
     }
 
     public function testGetPropertyAnnotation()
