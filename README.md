@@ -5,9 +5,10 @@ A standalone attribute and annotation reader that reads attributes and
 parses annotations in PHP doc comments. Compatible with Doctrine, but 
 does not require it, ie. it can be used in place of the Doctrine annotation 
 reader, as long as you don't need nested annotations on a class (nested 
-annotations on properties and methods are OK). Nested class annotations
-are not supported because Objectiphy does not need them, and native PHP 8 
-attributes do not support nesting.
+annotations on properties and methods are OK in docblock annotations but
+not attributes). Nested class annotations are not supported because 
+Objectiphy does not need them, and native PHP 8 attributes do not support 
+nesting.
 
 ## Why not just use Doctrine?
 
