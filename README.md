@@ -1,15 +1,13 @@
 # Objectiphy Annotations
 
 ## Description
-A standalone annotation reader that reads and parses annotations in PHP 
-doc comments. Compatible with Doctrine, but does not require it, ie. it 
-can be used in place of the Doctrine annotation reader, as long as you 
-don't need nested annotations on a class (nested annotations on 
-properties and methods are OK). Nested class annotations are not 
-supported because Objectiphy does not need them, and other projects that 
-currently rely on annotations will be moving to native PHP 8 attributes 
-which do not support nested attributes at all, so it didn't seem worth 
-the effort.
+A standalone attribute and annotation reader that reads attributes and 
+parses annotations in PHP doc comments. Compatible with Doctrine, but 
+does not require it, ie. it can be used in place of the Doctrine annotation 
+reader, as long as you don't need nested annotations on a class (nested 
+annotations on properties and methods are OK). Nested class annotations
+are not supported because Objectiphy does not need them, and native PHP 8 
+attributes do not support nesting.
 
 ## Why not just use Doctrine?
 
@@ -19,14 +17,16 @@ want. At the time of writing, Doctrine makes you jump through a few
 hoops and is not very tolerant of random non-standard annotations that 
 you have not told it about. I think this is a little easier to use, and 
 it should perform just as well as the Doctrine one. You can read any 
-annotation with this reader (except nested annotations on a class).
+attribute or annotation with this reader (except nested annotations on a 
+class).
 
 ## Requirements
 
 Objectiphy Annotations requires PHP 7.4 or higher. It has no other 
 dependencies. I chose PHP 7.4 because that was the latest version at 
-time of writing, and allowed me to use type hints on properties which 
-earlier versions of PHP did not support.
+time of initial writing, and allowed me to use type hints on properties
+which earlier versions of PHP did not support. It has been updated to
+read attributes in PHP 8 and beyond.
 
 ## Installation
 
@@ -38,6 +38,37 @@ composer require objectiphy/annotations
 with a PSR-4 autoloader.
 
 ## Basic usage
+
+The following documentation describes docblock annotations, but the equivalent
+PHP 8 attributes will also work in the same way. For example, whereas an
+annotation might look like this:
+
+```php
+/**
+ * @Mapping\Relationship(
+ *    childClassName="TestUser",
+ *    sourceJoinColumn="user_id", 
+ *    relationshipType="one_to_one", 
+ *    cascadeDeletes=true,
+ *    orphanRemoval=true
+ * )
+ */
+```
+
+...the equivalent attribute would look like this:
+
+```php
+#[Mapping\Relationship(
+    childClassName: TestUser::class, 
+    sourceJoinColumn: 'user_id', 
+    relationshipType: 'one_to_one', 
+    cascadeDeletes: true, 
+    orphanRemoval: true
+)]
+```
+
+...and both of the above would be read and returned by the annotation reader
+in exactly the same way.
 
 Suppose you have an entity with an annotation on a property, like this:
 
