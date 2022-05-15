@@ -58,6 +58,19 @@ class AnnotationResolver
     }
 
     /**
+     * If attributes are read outside the resolver, they can be set here (ie. PHP8 attributes)
+     * @param string $hostClassName
+     * @param string $itemName
+     * @param string $annotationClassName
+     * @param array $attributes
+     * @return void
+     */
+    public function setAttributesRead(string $hostClassName, string $itemName, string $annotationClassName, array $attributes): void
+    {
+        $this->attributes[$hostClassName][$itemName][$annotationClassName] = $attributes;
+    }
+
+    /**
      * @param \ReflectionClass $reflectionClass Host class.
      * @param string $name Name of annotation.
      * @param string $value String value of annotation.
@@ -257,7 +270,7 @@ class AnnotationResolver
      * @param string $annotationValue
      * @return AnnotationGeneric
      */
-    private function populateGenericAnnotation(
+    public function populateGenericAnnotation(
         string $annotationName,
         string $annotationValue
     ): AnnotationGeneric {

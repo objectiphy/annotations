@@ -13,9 +13,16 @@ namespace Objectiphy\Annotations;
 class DocParser
 {
     //Local cache
-    private array $classAnnotations;
-    private array $propertyAnnotations;
-    private array $methodAnnotations;
+    private array $classAnnotations = [];
+    private array $propertyAnnotations = [];
+    private array $methodAnnotations = [];
+
+    private bool $checkAttributes;
+
+    public function __construct()
+    {
+        $this->checkAttributes = \PHP_MAJOR_VERSION >= 8;
+    }
 
     /**
      * Parse doc comment for class annotations
@@ -25,9 +32,19 @@ class DocParser
     public function getClassAnnotations(\ReflectionClass $reflectionClass): array
     {
         $class = $reflectionClass->getName();
-        if (empty($this->classAnnotations[$class])) {
-            $docComment = $reflectionClass->getDocComment() ?: '';
-            $this->classAnnotations[$class] = $this->parseDocComment($docComment);
+        $attributesFound = false;
+        if ($this->checkAttributes) {
+            foreach ($reflectionClass->getAttributes() as $reflectionAttribute) {
+                $this->classAnnotations[$class][] = $reflectionAttribute;
+                $attributesFound = true;
+            }
+        }
+        if (!$attributesFound) {
+            $class = $reflectionClass->getName();
+            if (empty($this->classAnnotations[$class])) {
+                $docComment = $reflectionClass->getDocComment() ?: '';
+                $this->classAnnotations[$class] = $this->parseDocComment($docComment);
+            }
         }
         
         return $this->classAnnotations[$class] ?? [];
@@ -44,10 +61,14 @@ class DocParser
         if (empty($this->propertyAnnotations[$class])) {
             $this->propertyAnnotations[$class] = [];
             foreach ($reflectionClass->getProperties() as $reflectionProperty) {
-                $docComment = $reflectionProperty->getDocComment() ?: '';
                 $property = $reflectionProperty->getName();
-                $parsedComment = $this->parseDocComment($docComment);
-                $this->propertyAnnotations[$class][$property] = $parsedComment;
+                $this->propertyAnnotations[$class][$property] = $this->checkAttributes ? $reflectionProperty->getAttributes() : null;
+                if (!$this->propertyAnnotations[$class][$property]) {
+                    $docComment = $reflectionProperty->getDocComment() ?: '';
+                    $property = $reflectionProperty->getName();
+                    $parsedComment = $this->parseDocComment($docComment);
+                    $this->propertyAnnotations[$class][$property] = $parsedComment;
+                }
             }
         }
         
@@ -65,10 +86,14 @@ class DocParser
         if (empty($this->methodAnnotations[$class])) {
             $this->methodAnnotations[$class] = [];
             foreach ($reflectionClass->getMethods() as $reflectionMethod) {
-                $docComment = $reflectionMethod->getDocComment() ?: '';
                 $method = $reflectionMethod->getName();
-                $parsedComment = $this->parseDocComment($docComment);
-                $this->methodAnnotations[$class][$method] = $parsedComment;
+                $this->methodAnnotations[$class][$method] = $this->checkAttributes ? $reflectionMethod->getAttributes() : null;
+                if (!$this->methodAnnotations[$class][$method]) {
+                    $docComment = $reflectionMethod->getDocComment() ?: '';
+                    $method = $reflectionMethod->getName();
+                    $parsedComment = $this->parseDocComment($docComment);
+                    $this->methodAnnotations[$class][$method] = $parsedComment;
+                }
             }
         }
 

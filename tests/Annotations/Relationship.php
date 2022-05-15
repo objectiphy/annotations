@@ -5,12 +5,17 @@ declare(strict_types=1);
 //This file has been copied from an early version of Objectiphy, just as an example to use in unit tests
 namespace Objectiphy\Annotations\Tests\Annotations;
 
+use Objectiphy\Annotations\AttributeTrait;
+
 /**
  * An alternative to the various Doctrine relationship annotations (if specified, this will take precedence over 
  * Doctrine).
  */
+#[\Attribute(\Attribute::TARGET_PROPERTY | \Attribute::IS_REPEATABLE)] //Would not be repeatable irl in objectiphy, but ok for test
 class Relationship
 {
+    use AttributeTrait;
+    
     const ONE_TO_ONE = 'one_to_one';
     const ONE_TO_MANY = 'one_to_many';
     const MANY_TO_ONE = 'many_to_one';
@@ -79,11 +84,6 @@ class Relationship
     /** @var bool Orphan control (if child is removed from parent, delete the child, not just the relationship) */
     public bool $orphanRemoval = false;
     
-    public function __construct($relationshipType)
-    {
-        $this->relationshipType = $relationshipType;
-    }
-
     public function setChildClassName($value)
     {
         $this->childClassName = $value;

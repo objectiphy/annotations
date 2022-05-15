@@ -347,12 +347,18 @@ class AnnotationReader implements AnnotationReaderInterface
             $this->resolvedClassAnnotations[$this->class] = [];
             $annotations = $this->docParser->getClassAnnotations($this->reflectionClass);
             //Reverse array for consistency with property and method annotations, even though we don't support kids on a class annotation
-            foreach (array_reverse($annotations ?? []) as $index => $nameValuePair) {
-                foreach ($nameValuePair as $name => $value) {
-                    $resolved = $this->resolver->resolveClassAnnotation($this->reflectionClass, $name, $value);
-                    $this->handleResolverErrors();
-                    $this->addResolvedToIndex($this->resolvedClassAnnotations[$this->class], $name, $resolved);
+            foreach (array_reverse($annotations ?? []) as $index => $classAnnotation) {
+                if ($classAnnotation instanceof \ReflectionAttribute) { //Attribute already resolved
+                    $name = $classAnnotation->getName();
+                    $resolved = $classAnnotation->newInstance() ?: implode(' ', $classAnnotation->getArguments());
+                    $this->resolver->setAttributesRead($this->class, 'c', $name, $classAnnotation->getArguments());
+                } else {
+                    foreach ($classAnnotation as $name => $value) {
+                        $resolved = $this->resolver->resolveClassAnnotation($this->reflectionClass, $name, $value);
+                        $this->handleResolverErrors();
+                    }
                 }
+                $this->addResolvedToIndex($this->resolvedClassAnnotations[$this->class], $name, $resolved);
             }
         }
 
@@ -407,32 +413,43 @@ class AnnotationReader implements AnnotationReaderInterface
             if (!empty($annotations[$key])) {
                 //Reverse array to resolve children first
                 $children = [];
-                foreach (array_reverse($annotations[$key]) as $nameValuePair) {
-                    foreach ($nameValuePair as $name => $value) {
-                        if (substr($name, 0, 7) == '_child_') {
-                            $children[strtok($name, ':')] = $this->resolver->{'resolve' . ucfirst($type) . 'Annotation'}(
-                                $this->reflectionClass,
-                                $key,
-                                strtok(':'),
-                                $value
-                            );
+                foreach (array_reverse($annotations[$key]) as $annotation) {
+                    if ($annotation instanceof \ReflectionAttribute) {
+                        $name = $annotation->getName();
+                        if (class_exists($name)) {
+                            $resolved = $annotation->newInstance();
                         } else {
-                            $resolved = $this->resolver->{'resolve' . ucfirst($type) . 'Annotation'}(
-                                $this->reflectionClass,
-                                $key,
-                                $name,
-                                $value,
-                                $children
-                            );
+                            //Create generic with $annnotation->getAruments()
+                            $resolved = $this->resolver->populateGenericAnnotation($name, implode(' ', $annotation->getArguments()));
                         }
-                        $this->handleResolverErrors();
-                        if (!empty($resolved)) {
-                            $this->addResolvedToIndex(
-                                $annotationArray[$key],
-                                $name,
-                                $resolved
-                            );
+                        $this->resolver->setAttributesRead($this->class, ($type == 'method' ? 'm' : 'p') . ':' . $key, $name, $annotation->getArguments());
+                    } else {
+                        foreach ($annotation as $name => $value) {
+                            if (substr($name, 0, 7) == '_child_') {
+                                $children[strtok($name, ':')] = $this->resolver->{'resolve' . ucfirst($type) . 'Annotation'}(
+                                    $this->reflectionClass,
+                                    $key,
+                                    strtok(':'),
+                                    $value
+                                );
+                            } else {
+                                $resolved = $this->resolver->{'resolve' . ucfirst($type) . 'Annotation'}(
+                                    $this->reflectionClass,
+                                    $key,
+                                    $name,
+                                    $value,
+                                    $children
+                                );
+                            }
+                            $this->handleResolverErrors();
                         }
+                    }
+                    if (!empty($resolved)) {
+                        $this->addResolvedToIndex(
+                            $annotationArray[$key],
+                            $name,
+                            $resolved
+                        );
                     }
                 }
             }
@@ -554,7 +571,7 @@ class AnnotationReader implements AnnotationReaderInterface
      */
     private function getShortClassName(string $fullClassName): string
     {
-        return substr(strrchr($fullClassName, '\\'), 1) ?? '';
+        return substr(strrchr($fullClassName, '\\') ?: '', 1) ?? '';
     }
 
     /**

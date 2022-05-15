@@ -6,8 +6,10 @@ namespace Objectiphy\Annotations\Tests;
 
 use Objectiphy\Annotations\AnnotationGeneric;
 use Objectiphy\Annotations\ClassAliasFinder;
+use Objectiphy\Annotations\Tests\Entity\AttributeTestEntity;
 use Objectiphy\Annotations\Tests\Entity\TestEntity;
 use PHPUnit\Framework\TestCase;
+use PHPUnit\Util\Test;
 
 class AnnotationGenericTest extends TestCase
 {
@@ -21,7 +23,7 @@ class AnnotationGenericTest extends TestCase
     ) {
         $aliasFinder = new ClassAliasFinder();
         $reflectionClass = new \ReflectionClass(TestEntity::class);
-        $closure = function($alias) use ($reflectionClass, $aliasFinder) {
+        $closure = function ($alias) use ($reflectionClass, $aliasFinder) {
             return $aliasFinder->findClassForAlias($reflectionClass, $alias, false);
         };
         $generic = new AnnotationGeneric($annotationName, $annotationValue, $closure, $reflectionClass);
