@@ -24,7 +24,7 @@ class AnnotationGeneric
     /**
      * @var \ReflectionClass Class on which this annotation is defined.
      */
-    public \ReflectionClass $parentClass;
+    public ?\ReflectionClass $parentClass = null;
     
     /**
      * @var \ReflectionProperty|null If this is a property annotation, the property it relates to.
@@ -129,7 +129,7 @@ class AnnotationGeneric
         string $name, 
         string $value,
         \closure $aliasFinder, 
-        \ReflectionClass $reflectionClass, 
+        ?\ReflectionClass $reflectionClass = null, 
         ?\ReflectionProperty $reflectionProperty = null, 
         ?\ReflectionMethod $reflectionMethod = null
     ) {
@@ -165,7 +165,11 @@ class AnnotationGeneric
             //I pity the fool who separates words with something other than a space character.
             if ($startOfVariable === false && strpos($remainder, ' ') === false) {
                 //Single word after the annotation name - try to resolve it to a class name
-                $this->type = ($this->aliasFinder)($remainder);
+                try {
+                    $this->type = ($this->aliasFinder)($remainder) ?? '';
+                } catch (\Throwable $ex) {
+                    $this->type = '';
+                }
             } else { //Assume anything left is a comment
                 $this->comment = $remainder;
             }
