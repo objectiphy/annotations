@@ -282,9 +282,9 @@ class AnnotationResolver
             $annotationName,
             $annotationValue,
             $aliasFinder,
-            $this->reflectionClass,
-            $this->reflectionProperty,
-            $this->reflectionMethod
+            $this->reflectionClass ?? null,
+            $this->reflectionProperty ?? null,
+            $this->reflectionMethod ?? null
         );
     }
 
