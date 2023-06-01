@@ -230,15 +230,17 @@ class ClassAliasFinder
         $phpFile = $reflectionClass->getFileName();
         $phpContent = '';
 
-        $phpFile = new \SplFileObject($phpFile);
-        while (!$phpFile->eof()) {
-            $line = $phpFile->fgets();
-            if (substr(strtolower(ltrim($line)), 0, 6) == 'class ' 
-                || substr(strtolower(ltrim($line)), 0, 15) == 'abstract class '
-                || substr(strtolower(ltrim($line)), 0, 12) == 'final class ') {
-                break;
+        if (is_file($phpFile)) {
+            $phpFile = new \SplFileObject($phpFile);
+            while (!$phpFile->eof()) {
+                $line = $phpFile->fgets();
+                if (substr(strtolower(ltrim($line)), 0, 6) == 'class '
+                    || substr(strtolower(ltrim($line)), 0, 15) == 'abstract class '
+                    || substr(strtolower(ltrim($line)), 0, 12) == 'final class ') {
+                    break;
+                }
+                $phpContent .= $line;
             }
-            $phpContent .= $line;
         }
         $phpFile = null;
 
