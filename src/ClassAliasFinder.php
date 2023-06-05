@@ -230,6 +230,7 @@ class ClassAliasFinder
         $phpFile = $reflectionClass->getFileName();
         $phpContent = '';
 
+        clearstatcache();
         if (is_file($phpFile)) {
             $phpFile = new \SplFileObject($phpFile);
             while (!$phpFile->eof()) {
