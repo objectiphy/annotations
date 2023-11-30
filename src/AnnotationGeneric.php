@@ -213,4 +213,15 @@ class AnnotationGeneric
         
         return $itemName;
     }
+
+    public function __serialize(): array
+    {
+        $array = get_object_vars($this);
+        $array['aliasFinder'] = null;
+        $array['parentClass'] = null;
+        $array['parentMethod'] = null;
+        $array['parentProperty'] = null;
+
+        return $array;
+    }
 }
